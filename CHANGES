@@ -46,7 +46,7 @@ Features added
 * Add ``app.add_message_catalog()`` and ``sphinx.locale.get_translations()`` to
   support translation for 3rd party extensions
 * Add ``:continue:`` toctree option to continue (or offset)
-  ``:numbered:`` toctrees (#3357, #4546)
+  ``:numbered:`` toctrees (#3357)
 
 Bugs fixed
 ----------
