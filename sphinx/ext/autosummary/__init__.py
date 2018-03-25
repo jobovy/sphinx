@@ -60,7 +60,6 @@ import re
 import sys
 import warnings
 from types import ModuleType
-from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
@@ -81,7 +80,8 @@ from sphinx.pycode import ModuleAnalyzer, PycodeError
 from sphinx.util import import_object, rst, logging
 from sphinx.util.docutils import NullReporter, new_document
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Dict, List, Tuple, Type, Union  # NOQA
     from docutils.utils import Inliner  # NOQA
     from sphinx.application import Sphinx  # NOQA
@@ -89,6 +89,9 @@ if TYPE_CHECKING:
     from sphinx.ext.autodoc import Documenter  # NOQA
 
 logger = logging.getLogger(__name__)
+
+
+periods_re = re.compile('\.(?:\s+)')
 
 
 # -- autosummary_toc node ------------------------------------------------------
@@ -469,7 +472,7 @@ def extract_summary(doc, document):
             break
 
     # Try to find the "first sentence", which may span multiple lines
-    sentences = " ".join(doc).split('.')
+    sentences = periods_re.split(" ".join(doc))  # type: ignore
     if len(sentences) == 1:
         summary = sentences[0].strip()
     else:

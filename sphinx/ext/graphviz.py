@@ -16,7 +16,6 @@ import re
 from hashlib import sha1
 from os import path
 from subprocess import Popen, PIPE
-from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
@@ -30,7 +29,8 @@ from sphinx.util import logging
 from sphinx.util.i18n import search_image_for_language
 from sphinx.util.osutil import ensuredir, ENOENT, EPIPE, EINVAL
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Dict, List, Tuple  # NOQA
     from sphinx.application import Sphinx  # NOQA
 
@@ -277,7 +277,7 @@ def render_dot_html(self, node, code, options, prefix='graphviz',
                                    "'svg', but is %r") % format)
         fname, outfn = render_dot(self, code, options, format, prefix)
     except GraphvizError as exc:
-        logger.warning(__('dot code %r: ') % code + str(exc))
+        logger.warning(__('dot code %r: %s'), code, text_type(exc))
         raise nodes.SkipNode
 
     if fname is None:
@@ -321,7 +321,7 @@ def render_dot_latex(self, node, code, options, prefix='graphviz'):
     try:
         fname, outfn = render_dot(self, code, options, 'pdf', prefix)
     except GraphvizError as exc:
-        logger.warning(__('dot code %r: ') % code + str(exc))
+        logger.warning(__('dot code %r: %s'), code, text_type(exc))
         raise nodes.SkipNode
 
     is_inline = self.is_inline(node)
@@ -359,7 +359,7 @@ def render_dot_texinfo(self, node, code, options, prefix='graphviz'):
     try:
         fname, outfn = render_dot(self, code, options, 'png', prefix)
     except GraphvizError as exc:
-        logger.warning(__('dot code %r: ') % code + str(exc))
+        logger.warning(__('dot code %r: %s'), code, text_type(exc))
         raise nodes.SkipNode
     if fname is not None:
         self.body.append('@image{%s,,,[graphviz],png}\n' % fname[:-4])

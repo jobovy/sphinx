@@ -11,14 +11,14 @@
 """
 
 import copy
-from typing import TYPE_CHECKING
 
 from six import iteritems
 
 from sphinx.errors import SphinxError
 from sphinx.locale import _
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union  # NOQA
     from docutils import nodes  # NOQA
     from docutils.parsers.rst.states import Inliner  # NOQA
@@ -150,6 +150,8 @@ class Domain(object):
     indices = []            # type: List[Type[Index]]
     #: role name -> a warning message if reference is missing
     dangling_warnings = {}  # type: Dict[unicode, unicode]
+    #: node_class -> (enum_node_type, title_getter)
+    enumerable_nodes = {}   # type: Dict[nodes.Node, Tuple[unicode, Callable]]
 
     #: data value for a fresh environment
     initial_data = {}       # type: Dict
@@ -332,6 +334,12 @@ class Domain(object):
         if primary:
             return type.lname
         return _('%s %s') % (self.label, type.lname)
+
+    def get_enumerable_node_type(self, node):
+        # type: (nodes.Node) -> unicode
+        """Get type of enumerable nodes (experimental)."""
+        enum_node_type, _ = self.enumerable_nodes.get(node.__class__, (None, None))
+        return enum_node_type
 
     def get_full_qualified_name(self, node):
         # type: (nodes.Node) -> unicode

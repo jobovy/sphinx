@@ -9,8 +9,6 @@
     :license: BSD, see LICENSE for details.
 """
 
-from typing import TYPE_CHECKING
-
 from docutils import nodes, utils
 from docutils.nodes import make_id
 from docutils.parsers.rst import Directive, directives
@@ -22,7 +20,8 @@ from sphinx.roles import XRefRole
 from sphinx.util import logging
 from sphinx.util.nodes import make_refnode, set_source_info
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Callable, Dict, Iterable, List, Tuple  # NOQA
     from docutils.parsers.rst.states import Inliner  # NOQA
     from docutils.writers.html4css1 import Writer  # NOQA
@@ -63,6 +62,9 @@ class MathDomain(Domain):
     dangling_warnings = {
         'eq': 'equation not found: %(target)s',
     }
+    enumerable_nodes = {  # node_class -> (figtype, title_getter)
+        displaymath: ('displaymath', None),
+    }  # type: Dict[nodes.Node, Tuple[unicode, Callable]]
 
     def clear_doc(self, docname):
         # type: (unicode) -> None
@@ -87,6 +89,7 @@ class MathDomain(Domain):
                 newnode['target'] = target
                 return newnode
             else:
+                # TODO: perhaps use rather a sphinx-core provided prefix here?
                 node_id = make_id('equation-%s' % target)
                 if env.config.math_numfig and env.config.numfig:
                     if docname in env.toc_fignumbers:
@@ -378,12 +381,12 @@ def setup_math(app, htmlinlinevisitors, htmldisplayvisitors):
                  man=(man_visit_math, None),
                  texinfo=(texinfo_visit_math, None),
                  html=htmlinlinevisitors)
-    app.add_enumerable_node(displaymath, 'displaymath',
-                            latex=(latex_visit_displaymath, None),
-                            text=(text_visit_displaymath, None),
-                            man=(man_visit_displaymath, man_depart_displaymath),
-                            texinfo=(texinfo_visit_displaymath, texinfo_depart_displaymath),
-                            html=htmldisplayvisitors)
+    app.add_node(displaymath,
+                 latex=(latex_visit_displaymath, None),
+                 text=(text_visit_displaymath, None),
+                 man=(man_visit_displaymath, man_depart_displaymath),
+                 texinfo=(texinfo_visit_displaymath, texinfo_depart_displaymath),
+                 html=htmldisplayvisitors)
     app.add_node(eqref, latex=(latex_visit_eqref, None))
     app.add_role('math', math_role)
     app.add_role('eq', EqXRefRole(warn_dangling=True))

@@ -9,8 +9,6 @@
     :license: BSD, see LICENSE for details.
 """
 
-from typing import TYPE_CHECKING
-
 from docutils import nodes
 from six import iteritems
 
@@ -21,7 +19,8 @@ from sphinx.locale import __
 from sphinx.transforms import SphinxContentsFilter
 from sphinx.util import url_re, logging
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Dict, List, Set, Tuple  # NOQA
     from sphinx.application import Sphinx  # NOQA
     from sphinx.builders import Builder  # NOQA
@@ -229,6 +228,15 @@ class TocTreeCollector(EnvironmentCollector):
         env.toc_fignumbers = {}
         fignum_counter = {}  # type: Dict[unicode, Dict[Tuple[int, ...], int]]
 
+        def get_figtype(node):
+            # type: (nodes.Node) -> unicode
+            for domain in env.domains.values():
+                figtype = domain.get_enumerable_node_type(node)
+                if figtype:
+                    return figtype
+
+            return None
+
         def get_section_number(docname, section):
             # type: (unicode, nodes.Node) -> Tuple[int, ...]
             anchorname = '#' + section['ids'][0]
@@ -276,7 +284,7 @@ class TocTreeCollector(EnvironmentCollector):
 
                     continue
 
-                figtype = env.get_domain('std').get_figtype(subnode)
+                figtype = get_figtype(subnode)
                 if figtype and subnode['ids']:
                     register_fignumber(docname, secnum, figtype, subnode)
 

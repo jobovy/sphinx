@@ -16,7 +16,6 @@ import re
 import sys
 from collections import defaultdict
 from os import path
-from typing import TYPE_CHECKING
 
 from docutils import nodes, writers
 from docutils.writers.latex2e import Babel
@@ -33,7 +32,8 @@ from sphinx.util.nodes import clean_astext, traverse_parent
 from sphinx.util.template import LaTeXRenderer
 from sphinx.util.texescape import tex_escape_map, tex_replace_map
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Callable, Dict, Iterator, List, Pattern, Tuple, Set, Union  # NOQA
     from sphinx.builder import Builder  # NOQA
 
@@ -1961,6 +1961,11 @@ class LaTeXTranslator(nodes.NodeVisitor):
             if id.startswith('index-'):
                 return
 
+            # equations also need no extra blank line nor hypertarget
+            # TODO: fix this dependency on mathbase extension internals
+            if id.startswith('equation-'):
+                return
+
             # insert blank line, if the target follows a paragraph node
             index = node.parent.index(node)
             if index > 0 and isinstance(node.parent[index - 1], nodes.paragraph):
@@ -1990,7 +1995,7 @@ class LaTeXTranslator(nodes.NodeVisitor):
                 return
             else:
                 domain = self.builder.env.get_domain('std')
-                figtype = domain.get_figtype(next)
+                figtype = domain.get_enumerable_node_type(next)
                 if figtype and domain.get_numfig_title(next):
                     ids = set()
                     # labels for figures go in the figure body, not before

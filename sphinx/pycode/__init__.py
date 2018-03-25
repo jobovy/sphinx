@@ -10,15 +10,14 @@
 """
 from __future__ import print_function
 
-from typing import TYPE_CHECKING
-
 from six import iteritems, BytesIO, StringIO
 
 from sphinx.errors import PycodeError
 from sphinx.pycode.parser import Parser
 from sphinx.util import get_module_source, detect_encoding
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Dict, IO, List, Tuple  # NOQA
 
 
@@ -121,23 +120,3 @@ class ModuleAnalyzer(object):
             self.parse()
 
         return self.tags
-
-
-if __name__ == '__main__':
-    import time
-    import pprint
-    x0 = time.time()
-    # ma = ModuleAnalyzer.for_file(__file__.rstrip('c'), 'sphinx.builders.html')
-    ma = ModuleAnalyzer.for_file('sphinx/environment.py',
-                                 'sphinx.environment')
-    ma.tokenize()  # type: ignore
-    x1 = time.time()
-    ma.parse()
-    x2 = time.time()
-    # for (ns, name), doc in iteritems(ma.find_attr_docs()):
-    #     print '>>', ns, name
-    #     print '\n'.join(doc)
-    pprint.pprint(ma.find_tags())
-    x3 = time.time()
-    # print nodes.nice_repr(ma.parsetree, number2name)
-    print("tokenizing %.4f, parsing %.4f, finding %.4f" % (x1 - x0, x2 - x1, x3 - x2))

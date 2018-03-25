@@ -11,8 +11,8 @@
 
 import re
 import unicodedata
+import warnings
 from copy import copy
-from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
@@ -20,6 +20,7 @@ from docutils.statemachine import ViewList
 from six import iteritems
 
 from sphinx import addnodes
+from sphinx.deprecation import RemovedInSphinx30Warning
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
 from sphinx.locale import _, __
@@ -27,7 +28,8 @@ from sphinx.roles import XRefRole
 from sphinx.util import ws_re, logging, docname_join
 from sphinx.util.nodes import clean_astext, make_refnode
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any, Callable, Dict, Iterator, List, Tuple, Type, Union  # NOQA
     from sphinx.application import Sphinx  # NOQA
     from sphinx.builders import Builder  # NOQA
@@ -725,14 +727,14 @@ class StandardDomain(Domain):
         if not docname:
             return None
 
-        if env.config.numfig is False:
-            logger.warning(__('numfig is disabled. :numref: is ignored.'), location=node)
-            return contnode
-
         target_node = env.get_doctree(docname).ids.get(labelid)
-        figtype = self.get_figtype(target_node)
+        figtype = self.get_enumerable_node_type(target_node)
         if figtype is None:
             return None
+
+        if figtype != 'section' and env.config.numfig is False:
+            logger.warning(__('numfig is disabled. :numref: is ignored.'), location=node)
+            return contnode
 
         try:
             fignumber = self.get_fignumber(env, builder, figtype, docname, target_node)
@@ -926,9 +928,9 @@ class StandardDomain(Domain):
 
         return None
 
-    def get_figtype(self, node):
+    def get_enumerable_node_type(self, node):
         # type: (nodes.Node) -> unicode
-        """Get figure type of nodes."""
+        """Get type of enumerable nodes."""
         def has_child(node, cls):
             # type: (nodes.Node, Type) -> bool
             return any(isinstance(child, cls) for child in node)
@@ -943,6 +945,17 @@ class StandardDomain(Domain):
         else:
             figtype, _ = self.enumerable_nodes.get(node.__class__, (None, None))
             return figtype
+
+    def get_figtype(self, node):
+        # type: (nodes.Node) -> unicode
+        """Get figure type of nodes.
+
+        .. deprecated:: 1.8
+        """
+        warnings.warn('StandardDomain.get_figtype() is deprecated. '
+                      'Please use get_enumerable_node_type() instead.',
+                      RemovedInSphinx30Warning)
+        return self.get_enumerable_node_type(node)
 
     def get_fignumber(self, env, builder, figtype, docname, target_node):
         # type: (BuildEnvironment, Builder, unicode, unicode, nodes.Node) -> Tuple[int, ...]

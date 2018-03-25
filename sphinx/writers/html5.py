@@ -12,7 +12,6 @@
 import os
 import posixpath
 import sys
-from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.writers.html5_polyglot import HTMLTranslator as BaseTranslator
@@ -23,7 +22,8 @@ from sphinx.locale import admonitionlabels, _, __
 from sphinx.util import logging
 from sphinx.util.images import get_image_size
 
-if TYPE_CHECKING:
+if False:
+    # For type annotation
     from typing import Any  # NOQA
     from sphinx.builders.html import StandaloneHTMLBuilder  # NOQA
 
@@ -310,7 +310,7 @@ class HTML5Translator(BaseTranslator):
                     self.body.append(prefix % '.'.join(map(str, numbers)) + ' ')
                     self.body.append('</span>')
 
-        figtype = self.builder.env.domains['std'].get_figtype(node)  # type: ignore
+        figtype = self.builder.env.domains['std'].get_enumerable_node_type(node)
         if figtype:
             if len(node['ids']) == 0:
                 msg = __('Any IDs not assigned for %s node') % node.tagname

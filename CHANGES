@@ -19,19 +19,22 @@ Incompatible changes
 Deprecated
 ----------
 
-* :confval:`source_parsers` is deprecated. Please use ``add_source_parser()``
+* :confval:`source_parsers` is deprecated
   instead.
-* ``Application.import_object()`` is deprecated.  Please use
-  ``sphinx.util.import_object()`` instead.
+* ``Application.import_object()`` is deprecated
 * Drop function based directive support.  For now, Sphinx only supports class
   based directives.
 * ``Sphinx.add_source_parser()`` has changed;  the *suffix* argument has
-  been deprecated.  Please use ``Sphinx.add_source_suffix()`` instead.
-* ``sphinx.util.docutils.directive_helper()`` is deprecated.
-* ``sphinx.cmdline`` is deprecated.  Please use ``sphinx.cmd.build`` instead.
+  been deprecated
+* ``sphinx.util.docutils.directive_helper()`` is deprecated
+* ``sphinx.cmdline`` is deprecated
 * All ``env.update()``, ``env._read_serial()`` and ``env._read_parallel()`` are
-  deprecated.  Please use ``builder.read()`` instead.
-* ``sphinx.locale.l_()`` is deprecated.  Please use ``_()`` instead
+  deprecated
+* ``sphinx.locale.l_()`` is deprecated
+* #2157: helper function ``warn()`` for HTML themes is deprecated
+
+For more details, see `deprecation APIs list
+<http://www.sphinx-doc.org/en/master/extdev/index.html#deprecated-apis>`_
 
 Features added
 --------------
@@ -45,6 +48,9 @@ Features added
 * ``sphinx-build`` command supports i18n console output
 * Add ``app.add_message_catalog()`` and ``sphinx.locale.get_translations()`` to
   support translation for 3rd party extensions
+* helper function ``warning()`` for HTML themes is added
+* Add ``Domain.enumerable_nodes`` to manage own enumerable nodes for domains
+  (experimental)
 * Add ``:continue:`` toctree option to continue (or offset)
   ``:numbered:`` toctrees (#3357)
 
@@ -61,7 +67,7 @@ Features removed
 
 * ``sphinx.ext.pngmath`` extension
 
-Release 1.7.2 (in development)
+Release 1.7.3 (in development)
 ==============================
 
 Dependencies
@@ -79,11 +85,39 @@ Features added
 Bugs fixed
 ----------
 
-* #4669: sphinx.build_main and sphinx.make_main throw NameError
-* #4685: autosummary emits meaningless warnings
-
 Testing
 --------
+
+Release 1.7.2 (released Mar 21, 2018)
+=====================================
+
+Incompatible changes
+--------------------
+* #4520: apidoc: folders with an empty __init__.py are no longer excluded from
+  TOC
+
+Bugs fixed
+----------
+
+* #4669: sphinx.build_main and sphinx.make_main throw NameError
+* #4685: autosummary emits meaningless warnings
+* autodoc: crashed when invalid options given
+* pydomain: always strip parenthesis if empty (refs: #1042)
+* #4689: autosummary: unexpectedly strips docstrings containing "i.e."
+* #4701: viewcode: Misplaced ``<div>`` in viewcode html output
+* #4444: Don't require numfig to use :numref: on sections
+* #4727: Option clash for package textcomp
+* #4725: Sphinx does not work with python 3.5.0 and 3.5.1
+* #4716: Generation PDF file with TexLive on Windows, file not found error
+* #4574: vertical space before equation in latex
+* #4720: message when an image is mismatched for builder is not clear
+* #4655, #4684: Incomplete localization strings in Polish and Chinese
+* #2286: Sphinx crashes when error is happens in rendering HTML pages
+* #4688: Error to download remote images having long URL
+* #4754: sphinx/pycode/__init__.py raises AttributeError
+* #1435: qthelp builder should htmlescape keywords
+* epub: Fix docTitle elements of toc.ncx is not escaped
+* #4520: apidoc: Subpackage not in toc (introduced in 1.6.6) now fixed
 
 Release 1.7.1 (released Feb 23, 2018)
 =====================================
