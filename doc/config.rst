@@ -59,9 +59,6 @@ Important points to note:
   Note that the current builder tag is not available in ``conf.py``, as it is
   created *after* the builder is initialized.
 
-.. seealso:: Additional configurations, such as adding stylesheets,
-   javascripts, builders, etc. can be made through the :doc:`/extdev/appapi`.
-
 
 General configuration
 ---------------------
@@ -216,12 +213,12 @@ General configuration
    .. index:: default; domain
               primary; domain
 
-   The name of the default :ref:`domain <domains>`.  Can also be ``None`` to
-   disable a default domain.  The default is ``'py'``.  Those objects in other
-   domains (whether the domain name is given explicitly, or selected by a
-   :rst:dir:`default-domain` directive) will have the domain name explicitly
-   prepended when named (e.g., when the default domain is C, Python functions
-   will be named "Python function", not just "function").
+   The name of the default :doc:`domain </usage/restructuredtext/domains>`.
+   Can also be ``None`` to disable a default domain.  The default is ``'py'``.
+   Those objects in other domains (whether the domain name is given explicitly,
+   or selected by a :rst:dir:`default-domain` directive) will have the domain
+   name explicitly prepended when named (e.g., when the default domain is C,
+   Python functions will be named "Python function", not just "function").
 
    .. versionadded:: 1.0
 
@@ -845,6 +842,22 @@ that use Sphinx's HTMLWriter class.
    .. versionadded:: 0.4
       The image file will be copied to the ``_static`` directory of the output
       HTML, but only if the file does not already exist there.
+
+.. confval:: html_css_files
+
+   A list of CSS files.  The entry must be a *filename* string or a tuple
+   containing the *filename* string and the *attributes* dictionary.  The
+   *filename* must be relative to the :confval:`html_static_path`, or a full URI
+   with scheme like ``http://example.org/style.css``.  The *attributes* is used
+   for attributes of ``<link>`` tag.  It defaults to an empty list.
+
+   Example::
+
+       html_css_files = ['custom.css'
+                         'https://example.com/css/custom.css',
+                         ('print.css', {'media': 'print'})]
+
+   .. versionadded:: 1.8
 
 .. confval:: html_static_path
 
@@ -1511,6 +1524,14 @@ the `Dublin Core metadata <http://dublincore.org/>`_.
 
    .. versionadded:: 1.1
 
+.. confval:: epub_css_files
+
+   A list of CSS files.  The entry must be a *filename* string or a tuple
+   containing the *filename* string and the *attributes* dictionary.  For more
+   information, see :confval:`html_css_files`.
+
+   .. versionadded:: 1.8
+
 .. confval:: epub_guide
 
    Meta data for the guide element of :file:`content.opf`. This is a
@@ -1837,8 +1858,15 @@ These options influence LaTeX output. See further :doc:`latex`.
            ``'lualatex'`` uses same default setting as ``'xelatex'``
      ``'fontpkg'``
         Font package inclusion, default ``'\\usepackage{times}'`` (which uses
-        Times and Helvetica).  You can set this to ``''`` to use the Computer
-        Modern fonts.
+        Times for text, Helvetica for sans serif and Courier for code-blocks).
+
+        .. hint::
+
+           Courier is much wider than Times, and Sphinx emits LaTeX command
+           ``\small`` in code-blocks to compensate.  Since ``1.5`` this is not
+           hard-coded anymore: ``\fvset{fontsize=auto}`` can be added to
+           preamble to not change font size in code-blocks.  Since ``1.8`` a
+           separate ``'fvset'`` key is provided for this.
 
         .. versionchanged:: 1.2
            Defaults to ``''`` when the :confval:`language` uses the Cyrillic
@@ -1847,6 +1875,8 @@ These options influence LaTeX output. See further :doc:`latex`.
            Defaults to ``''`` when :confval:`latex_engine` is ``'xelatex'``.
         .. versionchanged:: 1.6
            Defaults to ``''`` also with ``'lualatex'``.
+        .. versionchanged:: 1.8
+           ``'xelatex'`` and ``'lualatex'`` do ``\fvset{fontsize=auto}``.
      ``'fncychap'``
         Inclusion of the "fncychap" package (which makes fancy chapter titles),
         default ``'\\usepackage[Bjarne]{fncychap}'`` for English documentation
@@ -1998,7 +2028,16 @@ These options influence LaTeX output. See further :doc:`latex`.
         differently or append some content after the index. For example
         ``'\\footnotesize\\raggedright\\printindex'`` is advisable when the
         index is full of long entries.
+     ``'fvset'``
+        Customization of ``fancyvrb`` LaTeX package. Defaults to
+        ``'\\fvset{fontsize=\\small}'``, because default font (Courier) used in
+        code-blocks is wider and taller than default text font (Times).
 
+        For ``'xelatex'`` and ``'lualatex'``, defaults to
+        ``'\\fvset{fontsize=auto}'``, because the default fonts are part of
+        one unified typeface family (Latin Modern OpenType).
+
+        .. versionadded:: 1.8
    * Keys that are set by other options and therefore should not be overridden
      are:
 

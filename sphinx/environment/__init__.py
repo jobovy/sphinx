@@ -38,7 +38,7 @@ from sphinx.util.docutils import sphinx_domains, WarningStream
 from sphinx.util.i18n import find_catalog_files
 from sphinx.util.matching import compile_matchers
 from sphinx.util.nodes import is_translatable
-from sphinx.util.osutil import SEP, ensuredir
+from sphinx.util.osutil import SEP, ensuredir, relpath
 from sphinx.util.websupport import is_commentable
 
 if False:
@@ -354,7 +354,7 @@ class BuildEnvironment(object):
         *filename* should be absolute or relative to the source directory.
         """
         if filename.startswith(self.srcdir):
-            filename = os.path.relpath(filename, self.srcdir)
+            filename = relpath(filename, self.srcdir)
         for suffix in self.config.source_suffix:
             if filename.endswith(suffix):
                 return filename[:-len(suffix)]
@@ -532,9 +532,6 @@ class BuildEnvironment(object):
         self.config = config
         self._update_settings(config)
 
-        # this cache also needs to be updated every time
-        self._nitpick_ignore = set(self.config.nitpick_ignore)
-
         # return tuple of (changed, reason)
         return bool(changed_reason), changed_reason
 
@@ -543,7 +540,6 @@ class BuildEnvironment(object):
         """Update settings by new config."""
         self.settings['input_encoding'] = config.source_encoding
         self.settings['trim_footnote_reference_space'] = config.trim_footnote_reference_space
-        self.settings['gettext_compact'] = config.gettext_compact
         self.settings['language_code'] = config.language or 'en'
 
         # Allow to disable by 3rd party extension (workaround)
@@ -864,3 +860,11 @@ class BuildEnvironment(object):
         warnings.warn('env._read_parallel() is deprecated. Please use builder.read() instead.',
                       RemovedInSphinx30Warning)
         return self.app.builder._read_parallel(docnames, nproc)
+
+    @property
+    def _nitpick_ignore(self):
+        # type: () -> List[unicode]
+        warnings.warn('env._nitpick_ignore is deprecated. '
+                      'Please use config.nitpick_ignore instead.',
+                      RemovedInSphinx30Warning)
+        return self.config.nitpick_ignore

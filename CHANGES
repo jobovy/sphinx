@@ -15,12 +15,13 @@ Incompatible changes
 * The default value of :confval:`epub_author` and :confval:`epub_publisher` are
   changed from ``'unknown'`` to the value of :confval:`author`.  This is same as
   a ``conf.py`` file sphinx-build generates.
+* The ``gettext_compact`` attribute is removed from ``document.settings``
+  object.  Please use ``config.gettext_compact`` instead.
 
 Deprecated
 ----------
 
 * :confval:`source_parsers` is deprecated
-  instead.
 * ``Application.import_object()`` is deprecated
 * Drop function based directive support.  For now, Sphinx only supports class
   based directives.
@@ -32,6 +33,9 @@ Deprecated
   deprecated
 * ``sphinx.locale.l_()`` is deprecated
 * #2157: helper function ``warn()`` for HTML themes is deprecated
+* ``env._nitpick_ignore`` is deprecated
+* ``app.override_domain()`` is deprecated
+* ``app.add_stylesheet()`` is deprecated
 
 For more details, see `deprecation APIs list
 <http://www.sphinx-doc.org/en/master/extdev/index.html#deprecated-apis>`_
@@ -51,6 +55,12 @@ Features added
 * helper function ``warning()`` for HTML themes is added
 * Add ``Domain.enumerable_nodes`` to manage own enumerable nodes for domains
   (experimental)
+* Add a new keyword argument ``override`` to Application APIs
+* LaTeX: new key ``'fvset'`` for :confval:`latex_elements`. For
+  XeLaTeX/LuaLaTeX its default sets ``fanvyvrb`` to use normal, not small,
+  fontsize in code-blocks (refs: #4793)
+* Add :confval:`html_css_files` and :confval:`epub_css_files` for adding CSS
+  files from configuration
 * Add ``:continue:`` toctree option to continue (or offset)
   ``:numbered:`` toctrees (#3357)
 
@@ -84,6 +94,13 @@ Features added
 
 Bugs fixed
 ----------
+
+* #4769: autodoc loses the first staticmethod parameter
+* #4790: autosummary: too wide two column tables in PDF builds
+* #4795: Latex customization via ``_templates/longtable.tex_t`` is broken
+* #4789: imgconverter: confused by convert.exe of Windows
+* #4783: On windows, Sphinx crashed when drives of srcdir and outdir are
+  different
 
 Testing
 --------

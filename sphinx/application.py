@@ -27,7 +27,9 @@ from six.moves import cStringIO
 import sphinx
 from sphinx import package_dir, locale
 from sphinx.config import Config
-from sphinx.deprecation import RemovedInSphinx20Warning, RemovedInSphinx30Warning
+from sphinx.deprecation import (
+    RemovedInSphinx20Warning, RemovedInSphinx30Warning, RemovedInSphinx40Warning
+)
 from sphinx.environment import BuildEnvironment
 from sphinx.errors import (
     ApplicationError, ConfigError, ExtensionError, VersionRequirementError
@@ -43,7 +45,7 @@ from sphinx.util.build_phase import BuildPhase
 from sphinx.util.console import bold  # type: ignore
 from sphinx.util.docutils import directive_helper
 from sphinx.util.i18n import find_catalog_source_files
-from sphinx.util.osutil import abspath, ensuredir
+from sphinx.util.osutil import abspath, ensuredir, relpath
 from sphinx.util.tags import Tags
 
 if False:
@@ -351,7 +353,7 @@ class Sphinx(object):
             if self.statuscode == 0 and self.builder.epilog:
                 logger.info('')
                 logger.info(self.builder.epilog % {
-                    'outdir': path.relpath(self.outdir),
+                    'outdir': relpath(self.outdir),
                     'project': self.config.project
                 })
         except Exception as err:
@@ -517,14 +519,17 @@ class Sphinx(object):
 
     # registering addon parts
 
-    def add_builder(self, builder):
-        # type: (Type[Builder]) -> None
+    def add_builder(self, builder, override=False):
+        # type: (Type[Builder], bool) -> None
         """Register a new builder.
 
         *builder* must be a class that inherits from
         :class:`~sphinx.builders.Builder`.
+
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
-        self.registry.add_builder(builder)
+        self.registry.add_builder(builder, override=override)
 
     # TODO(stephenfin): Describe 'types' parameter
     def add_config_value(self, name, default, rebuild, types=()):
@@ -571,8 +576,8 @@ class Sphinx(object):
         logger.debug('[app] adding event: %r', name)
         self.events.add(name)
 
-    def set_translator(self, name, translator_class):
-        # type: (unicode, Type[nodes.NodeVisitor]) -> None
+    def set_translator(self, name, translator_class, override=False):
+        # type: (unicode, Type[nodes.NodeVisitor], bool) -> None
         """Register or override a Docutils translator class.
 
         This is used to register a custom output translator or to replace a
@@ -580,11 +585,13 @@ class Sphinx(object):
         and define custom nodes for the translator (see :meth:`add_node`).
 
         .. versionadded:: 1.3
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
-        self.registry.add_translator(name, translator_class)
+        self.registry.add_translator(name, translator_class, override=override)
 
-    def add_node(self, node, **kwds):
-        # type: (nodes.Node, Any) -> None
+    def add_node(self, node, override=False, **kwds):
+        # type: (nodes.Node, bool, Any) -> None
         """Register a Docutils node class.
 
         This is necessary for Docutils internals.  It may also be used in the
@@ -615,7 +622,7 @@ class Sphinx(object):
            Added the support for keyword arguments giving visit functions.
         """
         logger.debug('[app] adding node: %r', (node, kwds))
-        if not kwds.pop('override', False) and docutils.is_node_registered(node):
+        if not override and docutils.is_node_registered(node):
             logger.warning(__('while setting up extension %s: node class %r is '
                               'already registered, its visitors will be overridden'),
                            self._setting_up_extension, node.__name__,
@@ -623,8 +630,8 @@ class Sphinx(object):
         docutils.register_node(node)
         self.registry.add_translation_handlers(node, **kwds)
 
-    def add_enumerable_node(self, node, figtype, title_getter=None, **kwds):
-        # type: (nodes.Node, unicode, TitleGetter, Any) -> None
+    def add_enumerable_node(self, node, figtype, title_getter=None, override=False, **kwds):
+        # type: (nodes.Node, unicode, TitleGetter, bool, Any) -> None
         """Register a Docutils node class as a numfig target.
 
         Sphinx numbers the node automatically. And then the users can refer it
@@ -648,8 +655,8 @@ class Sphinx(object):
 
         .. versionadded:: 1.4
         """
-        self.registry.add_enumerable_node(node, figtype, title_getter)
-        self.add_node(node, **kwds)
+        self.registry.add_enumerable_node(node, figtype, title_getter, override=override)
+        self.add_node(node, override=override, **kwds)
 
     @property
     def enumerable_nodes(self):
@@ -659,8 +666,8 @@ class Sphinx(object):
                       RemovedInSphinx30Warning)
         return self.registry.enumerable_nodes
 
-    def add_directive(self, name, obj, content=None, arguments=None, **options):
-        # type: (unicode, Any, bool, Tuple[int, int, bool], Any) -> None
+    def add_directive(self, name, obj, content=None, arguments=None, override=False, **options):  # NOQA
+        # type: (unicode, Any, bool, Tuple[int, int, bool], bool, Any) -> None
         """Register a Docutils directive.
 
         *name* must be the prospective directive name.  There are two possible
@@ -671,7 +678,7 @@ class Sphinx(object):
           function and determine whether the directive has content, arguments
           and options, respectively.  **This style is deprecated.**
 
-        - In the docutils 0.5 style, *directiveclass* is the directive class.
+        - In the docutils 0.5 style, *obj* is the directive class.
           It must already have attributes named *has_content*,
           *required_arguments*, *optional_arguments*,
           *final_argument_whitespace* and *option_spec* that correspond to the
@@ -687,21 +694,33 @@ class Sphinx(object):
 
         .. code-block:: python
 
-           from docutils.parsers.rst import directives
-           add_directive('literalinclude', literalinclude_directive,
-                         content = 0, arguments = (1, 0, 0),
-                         linenos = directives.flag,
-                         language = directives.unchanged,
-                         encoding = directives.encoding)
+           from docutils.parsers.rst import Directive, directives
+
+           class LiteralIncludeDirective(Directive):
+               has_content = True
+               required_arguments = 1
+               optional_arguments = 0
+               final_argument_whitespace = True
+               option_spec = {
+                   'class': directives.class_option,
+                   'name': directives.unchanged,
+               }
+
+               def run(self):
+                   ...
+
+           add_directive('literalinclude', LiteralIncludeDirective)
 
         .. versionchanged:: 0.6
            Docutils 0.5-style directive classes are now supported.
         .. deprecated:: 1.8
            Docutils 0.4-style (function based) directives support is deprecated.
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         logger.debug('[app] adding directive: %r',
                      (name, obj, content, arguments, options))
-        if name in directives._directives:
+        if name in directives._directives and not override:
             logger.warning(__('while setting up extension %s: directive %r is '
                               'already registered, it will be overridden'),
                            self._setting_up_extension[-1], name,
@@ -713,36 +732,41 @@ class Sphinx(object):
         else:
             directives.register_directive(name, obj)
 
-    def add_role(self, name, role):
-        # type: (unicode, Any) -> None
+    def add_role(self, name, role, override=False):
+        # type: (unicode, Any, bool) -> None
         """Register a Docutils role.
 
         *name* must be the role name that occurs in the source, *role* the role
         function. Refer to the `Docutils documentation
         <http://docutils.sourceforge.net/docs/howto/rst-roles.html>`_ for
         more information.
+
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         logger.debug('[app] adding role: %r', (name, role))
-        if name in roles._roles:
+        if name in roles._roles and not override:
             logger.warning(__('while setting up extension %s: role %r is '
                               'already registered, it will be overridden'),
                            self._setting_up_extension[-1], name,
                            type='app', subtype='add_role')
         roles.register_local_role(name, role)
 
-    def add_generic_role(self, name, nodeclass):
-        # type: (unicode, Any) -> None
+    def add_generic_role(self, name, nodeclass, override=False):
+        # type: (unicode, Any, bool) -> None
         """Register a generic Docutils role.
 
         Register a Docutils role that does nothing but wrap its contents in the
         node given by *nodeclass*.
 
         .. versionadded:: 0.6
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         # Don't use ``roles.register_generic_role`` because it uses
         # ``register_canonical_role``.
         logger.debug('[app] adding generic role: %r', (name, nodeclass))
-        if name in roles._roles:
+        if name in roles._roles and not override:
             logger.warning(__('while setting up extension %s: role %r is '
                               'already registered, it will be overridden'),
                            self._setting_up_extension[-1], name,
@@ -750,16 +774,18 @@ class Sphinx(object):
         role = roles.GenericRole(name, nodeclass)
         roles.register_local_role(name, role)
 
-    def add_domain(self, domain):
-        # type: (Type[Domain]) -> None
+    def add_domain(self, domain, override=False):
+        # type: (Type[Domain], bool) -> None
         """Register a domain.
 
         Make the given *domain* (which must be a class; more precisely, a
         subclass of :class:`~sphinx.domains.Domain`) known to Sphinx.
 
         .. versionadded:: 1.0
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
-        self.registry.add_domain(domain)
+        self.registry.add_domain(domain, override=override)
 
     def override_domain(self, domain):
         # type: (Type[Domain]) -> None
@@ -770,48 +796,60 @@ class Sphinx(object):
         of the existing one.
 
         .. versionadded:: 1.0
+        .. deprecated:: 1.8
+           Integrated to :meth:`add_domain`.
         """
-        self.registry.override_domain(domain)
+        warnings.warn('app.override_domain() is deprecated. '
+                      'Use app.add_domain() with override option instead.',
+                      RemovedInSphinx30Warning)
+        self.registry.add_domain(domain, override=True)
 
-    def add_directive_to_domain(self, domain, name, obj,
-                                has_content=None, argument_spec=None, **option_spec):
-        # type: (unicode, unicode, Any, bool, Any, Any) -> None
+    def add_directive_to_domain(self, domain, name, obj, has_content=None, argument_spec=None,
+                                override=False, **option_spec):
+        # type: (unicode, unicode, Any, bool, Any, bool, Any) -> None
         """Register a Docutils directive in a domain.
 
         Like :meth:`add_directive`, but the directive is added to the domain
         named *domain*.
 
         .. versionadded:: 1.0
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         self.registry.add_directive_to_domain(domain, name, obj,
-                                              has_content, argument_spec, **option_spec)
+                                              has_content, argument_spec, override=override,
+                                              **option_spec)
 
-    def add_role_to_domain(self, domain, name, role):
-        # type: (unicode, unicode, Union[RoleFunction, XRefRole]) -> None
+    def add_role_to_domain(self, domain, name, role, override=False):
+        # type: (unicode, unicode, Union[RoleFunction, XRefRole], bool) -> None
         """Register a Docutils role in a domain.
 
         Like :meth:`add_role`, but the role is added to the domain named
         *domain*.
 
         .. versionadded:: 1.0
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
-        self.registry.add_role_to_domain(domain, name, role)
+        self.registry.add_role_to_domain(domain, name, role, override=override)
 
-    def add_index_to_domain(self, domain, index):
-        # type: (unicode, Type[Index]) -> None
+    def add_index_to_domain(self, domain, index, override=False):
+        # type: (unicode, Type[Index], bool) -> None
         """Register a custom index for a domain.
 
         Add a custom *index* class to the domain named *domain*.  *index* must
         be a subclass of :class:`~sphinx.domains.Index`.
 
         .. versionadded:: 1.0
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         self.registry.add_index_to_domain(domain, index)
 
     def add_object_type(self, directivename, rolename, indextemplate='',
                         parse_node=None, ref_nodeclass=None, objname='',
-                        doc_field_types=[]):
-        # type: (unicode, unicode, unicode, Callable, nodes.Node, unicode, List) -> None
+                        doc_field_types=[], override=False):
+        # type: (unicode, unicode, unicode, Callable, nodes.Node, unicode, List, bool) -> None
         """Register a new object type.
 
         This method is a very convenient way to add a new :term:`object` type
@@ -866,9 +904,13 @@ class Sphinx(object):
 
         This method is also available under the deprecated alias
         :meth:`add_description_unit`.
+
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         self.registry.add_object_type(directivename, rolename, indextemplate, parse_node,
-                                      ref_nodeclass, objname, doc_field_types)
+                                      ref_nodeclass, objname, doc_field_types,
+                                      override=override)
 
     def add_description_unit(self, directivename, rolename, indextemplate='',
                              parse_node=None, ref_nodeclass=None, objname='',
@@ -886,8 +928,8 @@ class Sphinx(object):
                              ref_nodeclass, objname, doc_field_types)
 
     def add_crossref_type(self, directivename, rolename, indextemplate='',
-                          ref_nodeclass=None, objname=''):
-        # type: (unicode, unicode, unicode, nodes.Node, unicode) -> None
+                          ref_nodeclass=None, objname='', override=False):
+        # type: (unicode, unicode, unicode, nodes.Node, unicode, bool) -> None
         """Register a new crossref object type.
 
         This method is very similar to :meth:`add_object_type` except that the
@@ -913,9 +955,13 @@ class Sphinx(object):
 
         (Of course, the element following the ``topic`` directive needn't be a
         section.)
+
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
         self.registry.add_crossref_type(directivename, rolename,
-                                        indextemplate, ref_nodeclass, objname)
+                                        indextemplate, ref_nodeclass, objname,
+                                        override=override)
 
     def add_transform(self, transform):
         # type: (Type[Transform]) -> None
@@ -957,13 +1003,27 @@ class Sphinx(object):
             StandaloneHTMLBuilder.script_files.append(
                 posixpath.join('_static', filename))
 
-    def add_stylesheet(self, filename, alternate=False, title=None):
-        # type: (unicode, bool, unicode) -> None
+    def add_css_file(self, filename, **kwargs):
+        # type: (unicode, **unicode) -> None
         """Register a stylesheet to include in the HTML output.
 
         Add *filename* to the list of CSS files that the default HTML template
-        will include.  Like for :meth:`add_javascript`, the filename must be
-        relative to the HTML static path, or a full URI with scheme.
+        will include.  The filename must be relative to the HTML static path,
+        or a full URI with scheme.  The keyword arguments are also accepted for
+        attributes of ``<link>`` tag.
+
+        Example::
+
+            app.add_css_file('custom.css')
+            # => <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+
+            app.add_css_file('print.css', media='print')
+            # => <link rel="stylesheet" href="_static/print.css"
+            #          type="text/css" media="print" />
+
+            app.add_css_file('fancy.css', rel='alternate stylesheet', title='fancy')
+            # => <link rel="alternate stylesheet" href="_static/fancy.css"
+            #          type="text/css" title="fancy" />
 
         .. versionadded:: 1.0
 
@@ -973,17 +1033,33 @@ class Sphinx(object):
            arguments. The default is no title and *alternate* = ``False``. For
            more information, refer to the `documentation
            <https://mdn.io/Web/CSS/Alternative_style_sheets>`__.
+
+        .. versionchanged:: 1.8
+           Renamed from ``app.add_stylesheet()``.
+           And it allows keyword arguments as attributes of link tag.
         """
         logger.debug('[app] adding stylesheet: %r', filename)
-        from sphinx.builders.html import StandaloneHTMLBuilder, Stylesheet
         if '://' not in filename:
             filename = posixpath.join('_static', filename)
+        self.registry.add_css_files(filename, **kwargs)
+
+    def add_stylesheet(self, filename, alternate=False, title=None):
+        # type: (unicode, bool, unicode) -> None
+        """An alias of :meth:`add_css_file`."""
+        warnings.warn('The app.add_stylesheet() is deprecated. '
+                      'Please use app.add_css_file() instead.',
+                      RemovedInSphinx40Warning)
+
+        attributes = {}  # type: Dict[unicode, unicode]
         if alternate:
-            rel = u'alternate stylesheet'
+            attributes['rel'] = 'alternate stylesheet'
         else:
-            rel = u'stylesheet'
-        css = Stylesheet(filename, title, rel)  # type: ignore
-        StandaloneHTMLBuilder.css_files.append(css)
+            attributes['rel'] = 'stylesheet'
+
+        if title:
+            attributes['title'] = title
+
+        self.add_css_file(filename, **attributes)
 
     def add_latex_package(self, packagename, options=None):
         # type: (unicode, unicode) -> None
@@ -1070,25 +1146,29 @@ class Sphinx(object):
         assert issubclass(cls, SearchLanguage)
         languages[cls.lang] = cls
 
-    def add_source_suffix(self, suffix, filetype):
-        # type: (unicode, unicode) -> None
+    def add_source_suffix(self, suffix, filetype, override=False):
+        # type: (unicode, unicode, bool) -> None
         """Register a suffix of source files.
 
         Same as :confval:`source_suffix`.  The users can override this
         using the setting.
-        """
-        self.registry.add_source_suffix(suffix, filetype)
 
-    def add_source_parser(self, *args):
-        # type: (Any) -> None
+        .. versionadded:: 1.8
+        """
+        self.registry.add_source_suffix(suffix, filetype, override=override)
+
+    def add_source_parser(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         """Register a parser class.
 
         .. versionadded:: 1.4
         .. versionchanged:: 1.8
            *suffix* argument is deprecated.  It only accepts *parser* argument.
            Use :meth:`add_source_suffix` API to register suffix instead.
+        .. versionchanged:: 1.8
+           Add *override* keyword.
         """
-        self.registry.add_source_parser(*args)
+        self.registry.add_source_parser(*args, **kwargs)
 
     def add_env_collector(self, collector):
         # type: (Type[EnvironmentCollector]) -> None

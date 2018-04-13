@@ -94,6 +94,7 @@ APIs used for writing extensions
    nodes
    logging
    i18n
+   utils
 
 Deprecated APIs
 ---------------
@@ -112,6 +113,21 @@ The following is a list of deprecated interface.
      - Deprecated
      - (will be) Removed
      - Alternatives
+
+   * - :meth:`~sphinx.application.Sphinx.add_stylesheet()`
+     - 1.8
+     - 4.0
+     - :meth:`~sphinx.application.Sphinx.add_css_file()`
+
+   * - ``sphinx.application.Sphinx.override_domain()``
+     - 1.8
+     - 3.0
+     - :meth:`~sphinx.application.Sphinx.add_domain()`
+
+   * - ``BuildEnvironment._nitpick_ignore``
+     - 1.8
+     - 3.0
+     - :confval:`nitpick_ignore`
 
    * - ``warn()`` (template helper function)
      - 1.8
@@ -258,6 +274,11 @@ The following is a list of deprecated interface.
      - 1.6
      - 2.0
      - :meth:`~sphinx.application.Sphinx.add_stylesheet()`
+
+   * - ``document.settings.gettext_compact``
+     - 1.8
+     - 1.8
+     - :confval:`gettext_compact`
 
    * - ``Sphinx.status_iterator()``
      - 1.6
