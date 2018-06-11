@@ -244,8 +244,19 @@ def object_description(object):
         except TypeError:
             pass  # Cannot sort dict keys, fall back to generic repr
         else:
-            items = ("%r: %r" % (key, object[key]) for key in sorted_keys)
+            items = ("%s: %s" %
+                     (object_description(key), object_description(object[key]))
+                     for key in sorted_keys)
             return "{%s}" % ", ".join(items)
+    if isinstance(object, set):
+        try:
+            sorted_values = sorted(object)
+        except TypeError:
+            pass  # Cannot sort set values, fall back to generic repr
+        else:
+            template = "{%s}" if PY3 else "set([%s])"
+            return template % ", ".join(object_description(x)
+                                        for x in sorted_values)
     try:
         s = repr(object)
     except Exception:
@@ -298,8 +309,8 @@ class Signature(object):
     its return annotation.
     """
 
-    def __init__(self, subject, bound_method=False):
-        # type: (Callable, bool) -> None
+    def __init__(self, subject, bound_method=False, has_retval=True):
+        # type: (Callable, bool, bool) -> None
         # check subject is not a built-in class (ex. int, str)
         if (isinstance(subject, type) and
                 is_builtin_class_method(subject, "__new__") and
@@ -307,13 +318,17 @@ class Signature(object):
             raise TypeError("can't compute signature for built-in type {}".format(subject))
 
         self.subject = subject
+        self.has_retval = has_retval
         self.partialmethod_with_noargs = False
 
         if PY3:
             try:
                 self.signature = inspect.signature(subject)
             except IndexError:
-                if hasattr(subject, '_partialmethod'):  # partialmethod with no argument
+                # Until python 3.6.4, cpython has been crashed on inspection for
+                # partialmethods not having any arguments.
+                # https://bugs.python.org/issue33009
+                if hasattr(subject, '_partialmethod'):
                     self.signature = None
                     self.partialmethod_with_noargs = True
                 else:
@@ -372,7 +387,10 @@ class Signature(object):
     def return_annotation(self):
         # type: () -> Any
         if PY3 and self.signature:
-            return self.signature.return_annotation
+            if self.has_retval:
+                return self.signature.return_annotation
+            else:
+                return inspect.Parameter.empty
         else:
             return None
 

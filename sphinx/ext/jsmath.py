@@ -13,7 +13,7 @@
 from docutils import nodes
 
 import sphinx
-from sphinx.application import ExtensionError
+from sphinx.errors import ExtensionError
 from sphinx.ext.mathbase import get_node_equation_number
 from sphinx.ext.mathbase import setup_math as mathbase_setup
 from sphinx.locale import _
@@ -26,19 +26,19 @@ if False:
 
 def html_visit_math(self, node):
     # type: (nodes.NodeVisitor, nodes.Node) -> None
-    self.body.append(self.starttag(node, 'span', '', CLASS='math notranslate'))
-    self.body.append(self.encode(node['latex']) + '</span>')
+    self.body.append(self.starttag(node, 'span', '', CLASS='math notranslate nohighlight'))
+    self.body.append(self.encode(node.astext()) + '</span>')
     raise nodes.SkipNode
 
 
 def html_visit_displaymath(self, node):
     # type: (nodes.NodeVisitor, nodes.Node) -> None
     if node['nowrap']:
-        self.body.append(self.starttag(node, 'div', CLASS='math notranslate'))
-        self.body.append(self.encode(node['latex']))
+        self.body.append(self.starttag(node, 'div', CLASS='math notranslate nohighlight'))
+        self.body.append(self.encode(node.astext()))
         self.body.append('</div>')
         raise nodes.SkipNode
-    for i, part in enumerate(node['latex'].split('\n\n')):
+    for i, part in enumerate(node.astext().split('\n\n')):
         part = self.encode(part)
         if i == 0:
             # necessary to e.g. set the id property correctly
@@ -47,7 +47,7 @@ def html_visit_displaymath(self, node):
                 self.body.append('<span class="eqno">(%s)' % number)
                 self.add_permalink_ref(node, _('Permalink to this equation'))
                 self.body.append('</span>')
-            self.body.append(self.starttag(node, 'div', CLASS='math notranslate'))
+            self.body.append(self.starttag(node, 'div', CLASS='math notranslate nohighlight'))
         else:
             # but only once!
             self.body.append('<div class="math">')
@@ -64,7 +64,7 @@ def builder_inited(app):
     if not app.config.jsmath_path:
         raise ExtensionError('jsmath_path config value must be set for the '
                              'jsmath extension to work')
-    app.add_javascript(app.config.jsmath_path)
+    app.add_js_file(app.config.jsmath_path)
 
 
 def setup(app):

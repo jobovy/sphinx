@@ -62,13 +62,13 @@ def getLogger(name):
     # type: (str) -> SphinxLoggerAdapter
     """Get logger wrapped by :class:`sphinx.util.logging.SphinxLoggerAdapter`.
 
-    Sphinx logger always uses ``sphinx.*`` namesapce to be independent from
-    settings of root logger.  It ensure logging is consistent even if a
+    Sphinx logger always uses ``sphinx.*`` namespace to be independent from
+    settings of root logger.  It ensures logging is consistent even if a
     third-party extension or imported application resets logger settings.
 
     Example usage::
 
-        >>> from sphinx.utils import logging
+        >>> from sphinx.util import logging
         >>> logger = logging.getLogger(__name__)
         >>> logger.info('Hello, this is an extension!')
         Hello, this is an extension!
@@ -392,7 +392,7 @@ class WarningIsErrorFilter(logging.Filter):
             location = getattr(record, 'location', '')
             try:
                 message = record.msg % record.args
-            except TypeError:
+            except (TypeError, ValueError):
                 message = record.msg  # use record.msg itself
 
             if location:

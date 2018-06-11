@@ -20,8 +20,8 @@ from docutils.statemachine import ViewList
 from six import iteritems, itervalues, text_type, class_types, string_types
 
 import sphinx
-from sphinx.application import ExtensionError
 from sphinx.deprecation import RemovedInSphinx20Warning
+from sphinx.errors import ExtensionError
 from sphinx.ext.autodoc.importer import mock, import_object, get_object_members
 from sphinx.ext.autodoc.importer import _MockImporter  # to keep compatibility  # NOQA
 from sphinx.ext.autodoc.inspector import format_annotation, formatargspec  # to keep compatibility  # NOQA
@@ -643,11 +643,17 @@ class Documenter(object):
             # should be skipped
             if self.env.app:
                 # let extensions preprocess docstrings
-                skip_user = self.env.app.emit_firstresult(
-                    'autodoc-skip-member', self.objtype, membername, member,
-                    not keep, self.options)
-                if skip_user is not None:
-                    keep = not skip_user
+                try:
+                    skip_user = self.env.app.emit_firstresult(
+                        'autodoc-skip-member', self.objtype, membername, member,
+                        not keep, self.options)
+                    if skip_user is not None:
+                        keep = not skip_user
+                except Exception as exc:
+                    logger.warning(__('autodoc: failed to determine %r to be documented.'
+                                      'the following exception was raised:\n%s'),
+                                   member, exc)
+                    keep = False
 
             if keep:
                 ret.append((membername, member, isattr))
@@ -1035,9 +1041,11 @@ class FunctionDocumenter(DocstringSignatureMixin, ModuleLevelDocumenter):  # typ
             # typing) we try to use the constructor signature as function
             # signature without the first argument.
             try:
-                args = Signature(self.object.__new__, bound_method=True).format_args()
+                sig = Signature(self.object.__new__, bound_method=True, has_retval=False)
+                args = sig.format_args()
             except TypeError:
-                args = Signature(self.object.__init__, bound_method=True).format_args()
+                sig = Signature(self.object.__init__, bound_method=True, has_retval=False)
+                args = sig.format_args()
 
         # escape backslashes for reST
         args = args.replace('\\', '\\\\')
@@ -1090,7 +1098,7 @@ class ClassDocumenter(DocstringSignatureMixin, ModuleLevelDocumenter):  # type: 
                 not(inspect.ismethod(initmeth) or inspect.isfunction(initmeth)):
             return None
         try:
-            return Signature(initmeth, bound_method=True).format_args()
+            return Signature(initmeth, bound_method=True, has_retval=False).format_args()
         except TypeError:
             # still not possible: happens e.g. for old-style classes
             # with __init__ in C
@@ -1538,15 +1546,3 @@ def setup(app):
     app.add_event('autodoc-skip-member')
 
     return {'version': sphinx.__display_version__, 'parallel_read_safe': True}
-
-
-class testcls:
-    """test doc string"""
-
-    def __getattr__(self, x):
-        # type: (Any) -> Any
-        return x
-
-    def __setattr__(self, x, y):
-        # type: (Any, Any) -> None
-        """Attr setter."""

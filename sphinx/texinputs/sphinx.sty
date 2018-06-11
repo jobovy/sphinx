@@ -446,7 +446,7 @@
 
   \renewenvironment{sphinxthebibliography}[1]
     {\cleardoublepage% \phantomsection % not needed here since TeXLive 2010's hyperref
-     \begin{thebibliography}{1}}
+     \begin{thebibliography}{#1}}
     {\end{thebibliography}}
 \fi
 
@@ -662,6 +662,10 @@
   {\abovecaptionskip\smallskipamount
    \belowcaptionskip\smallskipamount}
 
+
+%% CITATIONS
+%
+\protected\def\sphinxcite{\cite}
 
 %% FOOTNOTES
 %
@@ -1578,6 +1582,7 @@
 \protected\def\sphinxtablecontinued#1{\textsf{#1}}
 \protected\def\sphinxtitleref#1{\emph{#1}}
 \protected\def\sphinxmenuselection#1{\emph{#1}}
+\protected\def\sphinxguilabel#1{\emph{#1}}
 \protected\def\sphinxaccelerator#1{\underline{#1}}
 \protected\def\sphinxcrossref#1{\emph{#1}}
 \protected\def\sphinxtermref#1{\emph{#1}}
@@ -1606,6 +1611,10 @@
 \newcommand*\sphinxstylecodecontinues[1]{\footnotesize(#1)}%
 % figure legend comes after caption and may contain arbitrary body elements
 \newenvironment{sphinxlegend}{\par\small}{\par}
+
+% For curly braces inside \index macro
+\def\sphinxleftcurlybrace{\{}
+\def\sphinxrightcurlybrace{\}}
 
 % Declare Unicode characters used by linux tree command to pdflatex utf8/utf8x
 \def\spx@bd#1#2{%

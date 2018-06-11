@@ -12,33 +12,29 @@
 import os
 import re
 import sys
-import time
-import types
 import warnings
 from collections import defaultdict
 from copy import copy
 from os import path
 
-from docutils.frontend import OptionParser
-from docutils.utils import Reporter, get_source_line
-from six import BytesIO, itervalues, class_types, next
+from docutils.utils import get_source_line
+from six import BytesIO, next
 from six.moves import cPickle as pickle
 
-from sphinx import addnodes, versioning
+from sphinx import addnodes
 from sphinx.deprecation import RemovedInSphinx20Warning, RemovedInSphinx30Warning
 from sphinx.environment.adapters.indexentries import IndexEntries
 from sphinx.environment.adapters.toctree import TocTree
-from sphinx.errors import SphinxError, ExtensionError
-from sphinx.io import read_doc
+from sphinx.errors import SphinxError, BuildEnvironmentError, ExtensionError
 from sphinx.locale import __
 from sphinx.transforms import SphinxTransformer
 from sphinx.util import get_matching_docs, FilenameUniqDict
-from sphinx.util import logging, rst
-from sphinx.util.docutils import sphinx_domains, WarningStream
+from sphinx.util import logging
+from sphinx.util.docutils import LoggingReporter
 from sphinx.util.i18n import find_catalog_files
 from sphinx.util.matching import compile_matchers
 from sphinx.util.nodes import is_translatable
-from sphinx.util.osutil import SEP, ensuredir, relpath
+from sphinx.util.osutil import SEP, relpath
 from sphinx.util.websupport import is_commentable
 
 if False:
@@ -71,7 +67,19 @@ default_settings = {
 # or changed to properly invalidate pickle files.
 #
 # NOTE: increase base version by 2 to have distinct numbers for Py2 and 3
-ENV_VERSION = 52 + (sys.version_info[0] - 2)
+ENV_VERSION = 53 + (sys.version_info[0] - 2)
+
+# config status
+CONFIG_OK = 1
+CONFIG_NEW = 2
+CONFIG_CHANGED = 3
+CONFIG_EXTENSIONS_CHANGED = 4
+
+CONFIG_CHANGED_REASON = {
+    CONFIG_NEW: __('new config'),
+    CONFIG_CHANGED: __('config changed'),
+    CONFIG_EXTENSIONS_CHANGED: __('extensions changed'),
+}
 
 
 versioning_conditions = {
@@ -95,77 +103,16 @@ class BuildEnvironment(object):
 
     domains = None  # type: Dict[unicode, Domain]
 
-    # --------- ENVIRONMENT PERSISTENCE ----------------------------------------
-
-    @staticmethod
-    def load(f, app=None):
-        # type: (IO, Sphinx) -> BuildEnvironment
-        try:
-            env = pickle.load(f)
-        except Exception as exc:
-            # This can happen for example when the pickle is from a
-            # different version of Sphinx.
-            raise IOError(exc)
-        if app:
-            env.app = app
-            env.config.values = app.config.values
-        return env
-
-    @classmethod
-    def loads(cls, string, app=None):
-        # type: (unicode, Sphinx) -> BuildEnvironment
-        io = BytesIO(string)
-        return cls.load(io, app)
-
-    @classmethod
-    def frompickle(cls, filename, app):
-        # type: (unicode, Sphinx) -> BuildEnvironment
-        with open(filename, 'rb') as f:
-            return cls.load(f, app)
-
-    @staticmethod
-    def dump(env, f):
-        # type: (BuildEnvironment, IO) -> None
-        # remove unpicklable attributes
-        app = env.app
-        del env.app
-        values = env.config.values
-        del env.config.values
-        domains = env.domains
-        del env.domains
-        # remove potentially pickling-problematic values from config
-        for key, val in list(vars(env.config).items()):
-            if key.startswith('_') or \
-               isinstance(val, types.ModuleType) or \
-               isinstance(val, types.FunctionType) or \
-               isinstance(val, class_types):
-                del env.config[key]
-        pickle.dump(env, f, pickle.HIGHEST_PROTOCOL)
-        # reset attributes
-        env.domains = domains
-        env.config.values = values
-        env.app = app
-
-    @classmethod
-    def dumps(cls, env):
-        # type: (BuildEnvironment) -> unicode
-        io = BytesIO()
-        cls.dump(env, io)
-        return io.getvalue()
-
-    def topickle(self, filename):
-        # type: (unicode) -> None
-        with open(filename, 'wb') as f:
-            self.dump(self, f)
-
     # --------- ENVIRONMENT INITIALIZATION -------------------------------------
 
-    def __init__(self, app):
+    def __init__(self, app=None):
         # type: (Sphinx) -> None
-        self.app = app
-        self.doctreedir = app.doctreedir
-        self.srcdir = app.srcdir  # type: unicode
-        self.config = app.config  # type: Config
+        self.app = None             # type: Sphinx
+        self.doctreedir = None      # type: unicode
+        self.srcdir = None          # type: unicode
+        self.config = None          # type: Config
+        self.config_status = None   # type: int
+        self.version = None         # type: Dict[unicode, unicode]
 
         # the method of doctree versioning; see set_versioning_method
         self.versioning_condition = None  # type: Union[bool, Callable]
@@ -180,9 +127,6 @@ class BuildEnvironment(object):
 
         # the function to write warning messages with
         self._warnfunc = None  # type: Callable
-
-        # this is to invalidate old pickles
-        self.version = app.registry.get_envversion(app)     # type: Dict[unicode, unicode]
 
         # All "docnames" here are /-separated and relative and exclude
         # the source suffix.
@@ -260,6 +204,76 @@ class BuildEnvironment(object):
         # attributes of "any" cross references
         self.ref_context = {}       # type: Dict[unicode, Any]
 
+        # set up environment
+        if app:
+            self.setup(app)
+
+    def __getstate__(self):
+        # type: () -> Dict
+        """Obtains serializable data for pickling."""
+        __dict__ = self.__dict__.copy()
+        __dict__.update(app=None, domains={})  # clear unpickable attributes
+        return __dict__
+
+    def __setstate__(self, state):
+        # type: (Dict) -> None
+        self.__dict__.update(state)
+
+    def setup(self, app):
+        # type: (Sphinx) -> None
+        """Set up BuildEnvironment object."""
+        if self.version and self.version != app.registry.get_envversion(app):
+            raise BuildEnvironmentError(__('build environment version not current'))
+        elif self.srcdir and self.srcdir != app.srcdir:
+            raise BuildEnvironmentError(__('source directory has changed'))
+
+        self.app = app
+        self.doctreedir = app.doctreedir
+        self.srcdir = app.srcdir
+        self.version = app.registry.get_envversion(app)
+
+        # initialize domains
+        self.domains = {}
+        for domain in app.registry.create_domains(self):
+            self.domains[domain.name] = domain
+
+        # initialize config
+        self._update_config(app.config)
+
+        # initialie settings
+        self._update_settings(app.config)
+
+    def _update_config(self, config):
+        # type: (Config) -> None
+        """Update configurations by new one."""
+        self.config_status = CONFIG_OK
+        if self.config is None:
+            self.config_status = CONFIG_NEW
+        else:
+            # check if a config value was changed that affects how
+            # doctrees are read
+            for item in config.filter('env'):
+                if self.config[item.name] != item.value:
+                    self.config_status = CONFIG_CHANGED
+                    break
+
+            # this value is not covered by the above loop because it is handled
+            # specially by the config class
+            if self.config.extensions != config.extensions:
+                self.config_status = CONFIG_EXTENSIONS_CHANGED
+
+        self.config = config
+
+    def _update_settings(self, config):
+        # type: (Config) -> None
+        """Update settings by new config."""
+        self.settings['input_encoding'] = config.source_encoding
+        self.settings['trim_footnote_reference_space'] = config.trim_footnote_reference_space
+        self.settings['language_code'] = config.language or 'en'
+
+        # Allow to disable by 3rd party extension (workaround)
+        self.settings.setdefault('smart_quotes', True)
+
     def set_warnfunc(self, func):
         # type: (Callable) -> None
         warnings.warn('env.set_warnfunc() is now deprecated. Use sphinx.util.logging instead.',
@@ -298,19 +312,6 @@ class BuildEnvironment(object):
         # type: (unicode, nodes.Node, Any) -> None
         """Like :meth:`warn`, but with source information taken from *node*."""
         self._warnfunc(msg, '%s:%s' % get_source_line(node), **kwargs)
-
-    def need_refresh(self, app):
-        # type: (Sphinx) -> Tuple[bool, unicode]
-        """Check refresh environment is needed.
-
-        If needed, this method returns the reason for refresh.
-        """
-        if self.version != app.registry.get_envversion(app):
-            return True, __('build environment version not current')
-        elif self.srcdir != app.srcdir:
-            return True, __('source directory has changed')
-        else:
-            return False, None
 
     def clear_doc(self, docname):
         # type: (unicode) -> None
@@ -507,44 +508,6 @@ class BuildEnvironment(object):
             if docname not in already:
                 yield docname
 
-    def update_config(self, config, srcdir, doctreedir):
-        # type: (Config, unicode, unicode) -> Tuple[bool, unicode]
-        """Update configurations by new one."""
-        changed_reason = ''
-        if self.config is None:
-            changed_reason = __('new config')
-        else:
-            # check if a config value was changed that affects how
-            # doctrees are read
-            for confval in config.filter('env'):
-                if self.config[confval.name] != confval.value:
-                    changed_reason = __('config changed')
-                    break
-
-            # this value is not covered by the above loop because it is handled
-            # specially by the config class
-            if self.config.extensions != config.extensions:
-                changed_reason = __('extensions changed')
-
-        # the source and doctree directories may have been relocated
-        self.srcdir = srcdir
-        self.doctreedir = doctreedir
-        self.config = config
-        self._update_settings(config)
-
-        # return tuple of (changed, reason)
-        return bool(changed_reason), changed_reason
-
-    def _update_settings(self, config):
-        # type: (Config) -> None
-        """Update settings by new config."""
-        self.settings['input_encoding'] = config.source_encoding
-        self.settings['trim_footnote_reference_space'] = config.trim_footnote_reference_space
-        self.settings['language_code'] = config.language or 'en'
-
-        # Allow to disable by 3rd party extension (workaround)
-        self.settings.setdefault('smart_quotes', True)
-
     # --------- SINGLE FILE READING --------------------------------------------
 
     def prepare_settings(self, docname):
@@ -555,45 +518,6 @@ class BuildEnvironment(object):
         self.temp_data['default_role'] = self.config.default_role
         self.temp_data['default_domain'] = \
             self.domains.get(self.config.primary_domain)
-
-    def read_doc(self, docname, app=None):
-        # type: (unicode, Sphinx) -> None
-        """Parse a file and add/update inventory entries for the doctree."""
-        self.prepare_settings(docname)
-
-        docutilsconf = path.join(self.srcdir, 'docutils.conf')
-        # read docutils.conf from source dir, not from current dir
-        OptionParser.standard_config_files[1] = docutilsconf
-        if path.isfile(docutilsconf):
-            self.note_dependency(docutilsconf)
-
-        with sphinx_domains(self), rst.default_role(docname, self.config.default_role):
-            doctree = read_doc(self.app, self, self.doc2path(docname))
-
-        # post-processing
-        for domain in itervalues(self.domains):
-            domain.process_doc(self, docname, doctree)
-
-        # allow extension-specific post-processing
-        if app:
-            app.emit('doctree-read', doctree)
-
-        # store time of reading, for outdated files detection
-        # (Some filesystems have coarse timestamp resolution;
-        # therefore time.time() can be older than filesystem's timestamp.
-        # For example, FAT32 has 2sec timestamp resolution.)
-        self.all_docs[docname] = max(
-            time.time(), path.getmtime(self.doc2path(docname)))
-
-        if self.versioning_condition:
-            # add uids for versioning
-            versioning.prepare(doctree)
-
-        # cleanup
-        self.temp_data.clear()
-        self.ref_context.clear()
-
-        self.write_doctree(docname, doctree)
 
     # utilities to use while reading a document
 
@@ -694,23 +618,8 @@ class BuildEnvironment(object):
         with open(doctree_filename, 'rb') as f:
             doctree = pickle.load(f)
         doctree.settings.env = self
-        doctree.reporter = Reporter(self.doc2path(docname), 2, 5, stream=WarningStream())
+        doctree.reporter = LoggingReporter(self.doc2path(docname))
         return doctree
-
-    def write_doctree(self, docname, doctree):
-        # type: (unicode, nodes.Node) -> None
-        """Write the doctree to a file."""
-        # make it picklable
-        doctree.reporter = None
-        doctree.transformer = None
-        doctree.settings.warning_stream = None
-        doctree.settings.env = None
-        doctree.settings.record_dependencies = None
-
-        doctree_filename = self.doc2path(docname, self.doctreedir, '.doctree')
-        ensuredir(path.dirname(doctree_filename))
-        with open(doctree_filename, 'wb') as f:
-            pickle.dump(doctree, f, pickle.HIGHEST_PROTOCOL)
 
     def get_and_resolve_doctree(self, docname, builder, doctree=None,
                                 prune_toctrees=True, includehidden=False):
@@ -861,6 +770,19 @@ class BuildEnvironment(object):
                       RemovedInSphinx30Warning)
         return self.app.builder._read_parallel(docnames, nproc)
 
+    def read_doc(self, docname, app=None):
+        # type: (unicode, Sphinx) -> None
+        warnings.warn('env.read_doc() is deprecated. Please use builder.read_doc() instead.',
+                      RemovedInSphinx30Warning)
+        self.app.builder.read_doc(docname)
+
+    def write_doctree(self, docname, doctree):
+        # type: (unicode, nodes.Node) -> None
+        warnings.warn('env.write_doctree() is deprecated. '
+                      'Please use builder.write_doctree() instead.',
+                      RemovedInSphinx30Warning)
+        self.app.builder.write_doctree(docname, doctree)
+
     @property
     def _nitpick_ignore(self):
         # type: () -> List[unicode]
@@ -868,3 +790,64 @@ class BuildEnvironment(object):
                       'Please use config.nitpick_ignore instead.',
                       RemovedInSphinx30Warning)
         return self.config.nitpick_ignore
+
+    @staticmethod
+    def load(f, app=None):
+        # type: (IO, Sphinx) -> BuildEnvironment
+        warnings.warn('BuildEnvironment.load() is deprecated. '
+                      'Please use pickle.load() instead.',
+                      RemovedInSphinx30Warning)
+        try:
+            env = pickle.load(f)
+        except Exception as exc:
+            # This can happen for example when the pickle is from a
+            # different version of Sphinx.
+            raise IOError(exc)
+        if app:
+            env.app = app
+            env.config.values = app.config.values
+        return env
+
+    @classmethod
+    def loads(cls, string, app=None):
+        # type: (unicode, Sphinx) -> BuildEnvironment
+        warnings.warn('BuildEnvironment.loads() is deprecated. '
+                      'Please use pickle.loads() instead.',
+                      RemovedInSphinx30Warning)
+        io = BytesIO(string)
+        return cls.load(io, app)
+
+    @classmethod
+    def frompickle(cls, filename, app):
+        # type: (unicode, Sphinx) -> BuildEnvironment
+        warnings.warn('BuildEnvironment.frompickle() is deprecated. '
+                      'Please use pickle.load() instead.',
+                      RemovedInSphinx30Warning)
+        with open(filename, 'rb') as f:
+            return cls.load(f, app)
+
+    @staticmethod
+    def dump(env, f):
+        # type: (BuildEnvironment, IO) -> None
+        warnings.warn('BuildEnvironment.dump() is deprecated. '
+                      'Please use pickle.dump() instead.',
+                      RemovedInSphinx30Warning)
+        pickle.dump(env, f, pickle.HIGHEST_PROTOCOL)
+
+    @classmethod
+    def dumps(cls, env):
+        # type: (BuildEnvironment) -> unicode
+        warnings.warn('BuildEnvironment.dumps() is deprecated. '
+                      'Please use pickle.dumps() instead.',
+                      RemovedInSphinx30Warning)
+        io = BytesIO()
+        cls.dump(env, io)
+        return io.getvalue()
+
+    def topickle(self, filename):
+        # type: (unicode) -> None
+        warnings.warn('env.topickle() is deprecated. '
+                      'Please use pickle.dump() instead.',
+                      RemovedInSphinx30Warning)
+        with open(filename, 'wb') as f:
+            self.dump(self, f)

@@ -12,7 +12,7 @@ from sphinx import addnodes
 sys.path.append(os.path.abspath('.'))
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.jsmath', 'sphinx.ext.todo',
-              'sphinx.ext.coverage', 'sphinx.ext.extlinks', 'ext']
+              'sphinx.ext.coverage', 'sphinx.ext.extlinks']
 
 jsmath_path = 'dummy.js'
 
@@ -65,8 +65,6 @@ man_pages = [
      'Georg Brandl and someone else', 1),
 ]
 
-value_from_conf_py = 84
-
 coverage_c_path = ['special/*.h']
 coverage_c_regexes = {'function': r'^PyAPI_FUNC\(.*\)\s+([^_][\w_]+)'}
 
@@ -104,10 +102,9 @@ class ClassDirective(Directive):
 def setup(app):
     import parsermod
 
-    app.add_config_value('value_from_conf_py', 42, False)
     app.add_directive('clsdir', ClassDirective)
     app.add_object_type('userdesc', 'userdescrole', '%s (userdesc)',
                         userdesc_parse, objname='user desc')
-    app.add_javascript('file://moo.js')
+    app.add_js_file('file://moo.js')
     app.add_source_suffix('.foo', 'foo')
     app.add_source_parser(parsermod.Parser)

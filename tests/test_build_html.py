@@ -227,7 +227,7 @@ def test_html_warnings(app, warning):
          "[@class='reference internal']/code/span[@class='pre']", 'HOME'),
         (".//a[@href='#with']"
          "[@class='reference internal']/code/span[@class='pre']", '^with$'),
-        (".//a[@href='#grammar-token-try_stmt']"
+        (".//a[@href='#grammar-token-try-stmt']"
          "[@class='reference internal']/code/span", '^statement$'),
         (".//a[@href='#some-label'][@class='reference internal']/span", '^here$'),
         (".//a[@href='#some-label'][@class='reference internal']/span", '^there$'),
@@ -259,7 +259,7 @@ def test_html_warnings(app, warning):
         (".//dl/dt[@id='term-boson']", 'boson'),
         # a production list
         (".//pre/strong", 'try_stmt'),
-        (".//pre/a[@href='#grammar-token-try1_stmt']/code/span", 'try1_stmt'),
+        (".//pre/a[@href='#grammar-token-try1-stmt']/code/span", 'try1_stmt'),
         # tests for ``only`` directive
         (".//p", 'A global substitution.'),
         (".//p", 'In HTML.'),
@@ -1089,6 +1089,10 @@ def test_enumerable_node(app, cached_etree_parse, fname, expect):
 def test_html_assets(app):
     app.builder.build_all()
 
+    # exclude_path and its family
+    assert not (app.outdir / 'static' / 'index.html').exists()
+    assert not (app.outdir / 'extra' / 'index.html').exists()
+
     # html_static_path
     assert not (app.outdir / '_static' / '.htaccess').exists()
     assert not (app.outdir / '_static' / '.htpasswd').exists()
@@ -1118,6 +1122,11 @@ def test_html_assets(app):
     assert '<link rel="stylesheet" type="text/css" href="_static/css/style.css" />' in content
     assert ('<link media="print" rel="stylesheet" title="title" type="text/css" '
             'href="https://example.com/custom.css" />' in content)
+
+    # html_js_files
+    assert '<script type="text/javascript" src="_static/js/custom.js"></script>' in content
+    assert ('<script async="async" type="text/javascript" src="https://example.com/script.js">'
+            '</script>' in content)
 
 
 @pytest.mark.sphinx('html', testroot='basic', confoverrides={'html_copy_source': False})
@@ -1264,3 +1273,28 @@ def test_html_sidebar(app, status, warning):
 def test_html_manpage(app, cached_etree_parse, fname, expect):
     app.build()
     check_xpath(cached_etree_parse(app.outdir / fname), fname, *expect)
+
+
+@pytest.mark.sphinx('html', testroot='toctree-glob',
+                    confoverrides={'html_baseurl': 'https://example.com/'})
+def test_html_baseurl(app, status, warning):
+    app.build()
+
+    result = (app.outdir / 'index.html').text(encoding='utf8')
+    assert '<link rel="canonical" href="https://example.com/index.html" />' in result
+
+    result = (app.outdir / 'qux' / 'index.html').text(encoding='utf8')
+    assert '<link rel="canonical" href="https://example.com/qux/index.html" />' in result
+
+
+@pytest.mark.sphinx('html', testroot='toctree-glob',
+                    confoverrides={'html_baseurl': 'https://example.com/subdir',
+                                   'html_file_suffix': '.htm'})
+def test_html_baseurl_and_html_file_suffix(app, status, warning):
+    app.build()
+
+    result = (app.outdir / 'index.htm').text(encoding='utf8')
+    assert '<link rel="canonical" href="https://example.com/subdir/index.htm" />' in result
+
+    result = (app.outdir / 'qux' / 'index.htm').text(encoding='utf8')
+    assert '<link rel="canonical" href="https://example.com/subdir/qux/index.htm" />' in result

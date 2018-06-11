@@ -9,6 +9,7 @@
 
 import codecs
 import sys
+import warnings
 from difflib import unified_diff
 
 from docutils import nodes
@@ -17,6 +18,7 @@ from docutils.statemachine import ViewList
 from six import text_type
 
 from sphinx import addnodes
+from sphinx.deprecation import RemovedInSphinx40Warning
 from sphinx.locale import __
 from sphinx.util import logging
 from sphinx.util import parselinenos
@@ -43,20 +45,25 @@ class Highlight(SphinxDirective):
     optional_arguments = 0
     final_argument_whitespace = False
     option_spec = {
-        'linenothreshold': directives.unchanged,
+        'linenothreshold': directives.positive_int,
     }
 
     def run(self):
         # type: () -> List[nodes.Node]
-        if 'linenothreshold' in self.options:
-            try:
-                linenothreshold = int(self.options['linenothreshold'])
-            except Exception:
-                linenothreshold = 10
-        else:
-            linenothreshold = sys.maxsize
+        linenothreshold = self.options.get('linenothreshold', sys.maxsize)
         return [addnodes.highlightlang(lang=self.arguments[0].strip(),
                                        linenothreshold=linenothreshold)]
+
+
+class HighlightLang(Highlight):
+    """highlightlang directive (deprecated)"""
+
+    def run(self):
+        # type: () -> List[nodes.Node]
+        warnings.warn('highlightlang directive is deprecated. '
+                      'Please use highlight directive instead.',
+                      RemovedInSphinx40Warning)
+        return Highlight.run(self)
 
 
 def dedent_lines(lines, dedent, location=None):
@@ -242,7 +249,7 @@ class LiteralIncludeReader(object):
         new_lines = self.read_file(self.filename)
         old_filename = self.options.get('diff')
         old_lines = self.read_file(old_filename)
-        diff = unified_diff(old_lines, new_lines, old_filename, self.filename)  # type: ignore
+        diff = unified_diff(old_lines, new_lines, old_filename, self.filename)
         return list(diff)
 
     def pyobject_filter(self, lines, location=None):
@@ -462,7 +469,7 @@ class LiteralInclude(SphinxDirective):
 def setup(app):
     # type: (Sphinx) -> Dict[unicode, Any]
     directives.register_directive('highlight', Highlight)
-    directives.register_directive('highlightlang', Highlight)  # old
+    directives.register_directive('highlightlang', HighlightLang)
     directives.register_directive('code-block', CodeBlock)
     directives.register_directive('sourcecode', CodeBlock)
     directives.register_directive('literalinclude', LiteralInclude)

@@ -12,8 +12,12 @@
 import errno
 import re
 import subprocess
+import warnings
 
 import pytest
+from docutils import nodes
+
+from sphinx.testing.util import assert_node
 
 
 def has_binary(binary):
@@ -35,19 +39,19 @@ def test_jsmath(app, status, warning):
     app.builder.build_all()
     content = (app.outdir / 'math.html').text()
 
-    assert '<div class="math notranslate">\na^2 + b^2 = c^2</div>' in content
-    assert ('<div class="math notranslate">\n\\begin{split}a + 1 &lt; b\\end{split}</div>'
-            in content)
+    assert '<div class="math notranslate nohighlight">\na^2 + b^2 = c^2</div>' in content
+    assert ('<div class="math notranslate nohighlight">\n\\begin{split}a + 1 &lt; '
+            'b\\end{split}</div>' in content)
     assert (u'<span class="eqno">(1)<a class="headerlink" href="#equation-foo" '
             u'title="Permalink to this equation">\xb6</a></span>'
-            u'<div class="math notranslate" id="equation-foo">\ne^{i\\pi} = 1</div>'
-            in content)
+            u'<div class="math notranslate nohighlight" id="equation-foo">'
+            '\ne^{i\\pi} = 1</div>' in content)
     assert (u'<span class="eqno">(2)<a class="headerlink" href="#equation-math-0" '
             u'title="Permalink to this equation">\xb6</a></span>'
-            u'<div class="math notranslate" id="equation-math-0">\n'
+            u'<div class="math notranslate nohighlight" id="equation-math-0">\n'
             u'e^{ix} = \\cos x + i\\sin x</div>' in content)
-    assert '<div class="math notranslate">\nn \\in \\mathbb N</div>' in content
-    assert '<div class="math notranslate">\na + 1 &lt; b</div>' in content
+    assert '<div class="math notranslate nohighlight">\nn \\in \\mathbb N</div>' in content
+    assert '<div class="math notranslate nohighlight">\na + 1 &lt; b</div>' in content
 
 
 @pytest.mark.skipif(not has_binary('dvipng'),
@@ -91,7 +95,7 @@ def test_mathjax_align(app, status, warning):
     app.builder.build_all()
 
     content = (app.outdir / 'index.html').text()
-    html = (r'<div class="math notranslate">\s*'
+    html = (r'<div class="math notranslate nohighlight">\s*'
             r'\\\[ \\begin\{align\}\\begin\{aligned\}S \&amp;= \\pi r\^2\\\\'
             r'V \&amp;= \\frac\{4\}\{3\} \\pi r\^3\\end\{aligned\}\\end\{align\} \\\]</div>')
     assert re.search(html, content, re.S)
@@ -104,7 +108,7 @@ def test_math_number_all_mathjax(app, status, warning):
     app.builder.build_all()
 
     content = (app.outdir / 'index.html').text()
-    html = (r'<div class="math notranslate" id="equation-index-0">\s*'
+    html = (r'<div class="math notranslate nohighlight" id="equation-index-0">\s*'
             r'<span class="eqno">\(1\)<a .*>\xb6</a></span>\\\[a\^2\+b\^2=c\^2\\\]</div>')
     assert re.search(html, content, re.S)
 
@@ -169,7 +173,7 @@ def test_mathjax_numfig_html(app, status, warning):
     app.builder.build_all()
 
     content = (app.outdir / 'math.html').text()
-    html = ('<div class="math notranslate" id="equation-math-0">\n'
+    html = ('<div class="math notranslate nohighlight" id="equation-math-0">\n'
             '<span class="eqno">(1.2)')
     assert html in content
     html = ('<p>Referencing equation <a class="reference internal" '
@@ -208,3 +212,28 @@ def test_imgmath_numfig_html(app, status, warning):
             'href="math.html#equation-foo">(1)</a> and '
             '<a class="reference internal" href="#equation-bar">(3)</a>.</p>')
     assert html in content
+
+
+@pytest.mark.sphinx('dummy', testroot='ext-math-compat')
+def test_math_compat(app, status, warning):
+    with warnings.catch_warnings(record=True):
+        app.builder.build_all()
+        doctree = app.env.get_and_resolve_doctree('index', app.builder)
+
+        assert_node(doctree,
+                    [nodes.document, nodes.section, (nodes.title,
+                                                     [nodes.section, (nodes.title,
+                                                                      nodes.paragraph)],
+                                                     nodes.section)])
+        assert_node(doctree[0][1][1],
+                    ('Inline: ',
+                     [nodes.math, "E=mc^2"],
+                     '\nInline my math: ',
+                     [nodes.math, "E = mc^2"]))
+        assert_node(doctree[0][2],
+                    ([nodes.title, "block"],
+                     [nodes.math_block, "a^2+b^2=c^2\n\n"],
+                     [nodes.paragraph, "Second math"],
+                     [nodes.math_block, "e^{i\\pi}+1=0\n\n"],
+                     [nodes.paragraph, "Multi math equations"],
+                     [nodes.math_block, "E = mc^2"]))

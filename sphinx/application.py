@@ -13,7 +13,6 @@
 from __future__ import print_function
 
 import os
-import posixpath
 import sys
 import warnings
 from collections import deque
@@ -22,18 +21,18 @@ from os import path
 
 from docutils.parsers.rst import Directive, directives, roles
 from six import itervalues
+from six.moves import cPickle as pickle
 from six.moves import cStringIO
 
 import sphinx
 from sphinx import package_dir, locale
-from sphinx.config import Config
+from sphinx.config import Config, check_unicode
+from sphinx.config import CONFIG_FILENAME  # NOQA # for compatibility (RemovedInSphinx30)
 from sphinx.deprecation import (
     RemovedInSphinx20Warning, RemovedInSphinx30Warning, RemovedInSphinx40Warning
 )
 from sphinx.environment import BuildEnvironment
-from sphinx.errors import (
-    ApplicationError, ConfigError, ExtensionError, VersionRequirementError
-)
+from sphinx.errors import ApplicationError, ConfigError, VersionRequirementError
 from sphinx.events import EventManager
 from sphinx.locale import __
 from sphinx.registry import SphinxComponentRegistry
@@ -83,6 +82,7 @@ builtin_extensions = (
     'sphinx.domains.c',
     'sphinx.domains.cpp',
     'sphinx.domains.javascript',
+    'sphinx.domains.math',
     'sphinx.domains.python',
     'sphinx.domains.rst',
     'sphinx.domains.std',
@@ -97,6 +97,7 @@ builtin_extensions = (
     'sphinx.roles',
     'sphinx.transforms.post_transforms',
     'sphinx.transforms.post_transforms.images',
+    'sphinx.transforms.post_transforms.compat',
     'sphinx.util.compat',
     # collectors should be loaded by specific order
     'sphinx.environment.collectors.dependencies',
@@ -110,7 +111,6 @@ builtin_extensions = (
     'alabaster',
 )  # type: Tuple[unicode, ...]
 
-CONFIG_FILENAME = 'conf.py'
 ENV_PICKLE_FILENAME = 'environment.pickle'
 
 logger = logging.getLogger(__name__)
@@ -189,10 +189,11 @@ class Sphinx(object):
 
         # read config
         self.tags = Tags(tags)
-        self.config = Config(self.confdir, CONFIG_FILENAME,
-                             confoverrides or {}, self.tags)
-        self.config.check_unicode()
-        # defer checking types until i18n has been initialized
+        if self.confdir is None:
+            self.config = Config({}, confoverrides or {})
+        else:
+            self.config = Config.read(self.confdir, confoverrides or {}, self.tags)
+            check_unicode(self.config)
 
         # initialize some limited config variables before initialize i18n and loading
         # extensions
@@ -250,8 +251,6 @@ class Sphinx(object):
 
         # create the builder
         self.builder = self.create_builder(buildername)
-        # check all configuration values for permissible types
-        self.config.check_types()
         # set up the build environment
         self._init_env(freshenv)
         # set up the builder
@@ -287,21 +286,15 @@ class Sphinx(object):
         # type: (bool) -> None
         filename = path.join(self.doctreedir, ENV_PICKLE_FILENAME)
         if freshenv or not os.path.exists(filename):
-            self.env = BuildEnvironment(self)
+            self.env = BuildEnvironment()
+            self.env.setup(self)
             self.env.find_files(self.config, self.builder)
-            for domain in self.registry.create_domains(self.env):
-                self.env.domains[domain.name] = domain
         else:
             try:
                 logger.info(bold(__('loading pickled environment... ')), nonl=True)
-                self.env = BuildEnvironment.frompickle(filename, self)
-                needed, reason = self.env.need_refresh(self)
-                if needed:
-                    raise IOError(reason)
-                self.env.domains = {}
-                for domain in self.registry.create_domains(self.env):
-                    # this can raise if the data version doesn't fit
-                    self.env.domains[domain.name] = domain
+                with open(filename, 'rb') as f:
+                    self.env = pickle.load(f)
+                    self.env.setup(self)
                 logger.info(__('done'))
             except Exception as err:
                 logger.info(__('failed: %s'), err)
@@ -561,8 +554,6 @@ class Sphinx(object):
         """
         logger.debug('[app] adding config value: %r',
                      (name, default, rebuild) + ((types,) if types else ()))  # type: ignore
-        if name in self.config:
-            raise ExtensionError(__('Config value %r already present') % name)
         if rebuild in (False, True):
             rebuild = rebuild and 'env' or ''
         self.config.add(name, default, rebuild, types)
@@ -970,7 +961,31 @@ class Sphinx(object):
         Add the standard docutils :class:`Transform` subclass *transform* to
         the list of transforms that are applied after Sphinx parses a reST
         document.
-        """
+
+        .. list-table:: priority range categories for Sphinx transforms
+           :widths: 20,80
+
+           * - Priority
+             - Main purpose in Sphinx
+           * - 0-99
+             - Fix invalid nodes by docutils. Translate a doctree.
+           * - 100-299
+             - Preparation
+           * - 300-399
+             - early
+           * - 400-699
+             - main
+           * - 700-799
+             - Post processing. Deadline to modify text and referencing.
+           * - 800-899
+             - Collect referencing and referenced nodes. Domain processing.
+           * - 900-999
+             - Finalize and clean up.
+
+        refs: `Transform Priority Range Categories`__
+
+        __ http://docutils.sourceforge.net/docs/ref/transforms.html#transform-priority-range-categories
+        """  # NOQA
         self.registry.add_transform(transform)
 
     def add_post_transform(self, transform):
@@ -983,25 +998,38 @@ class Sphinx(object):
         """
         self.registry.add_post_transform(transform)
 
-    def add_javascript(self, filename):
-        # type: (unicode) -> None
+    def add_javascript(self, filename, **kwargs):
+        # type: (unicode, **unicode) -> None
+        """An alias of :meth:`add_js_file`."""
+        warnings.warn('The app.add_javascript() is deprecated. '
+                      'Please use app.add_js_file() instead.',
+                      RemovedInSphinx40Warning)
+        self.add_js_file(filename, **kwargs)
+
+    def add_js_file(self, filename, **kwargs):
+        # type: (unicode, **unicode) -> None
         """Register a JavaScript file to include in the HTML output.
 
         Add *filename* to the list of JavaScript files that the default HTML
         template will include.  The filename must be relative to the HTML
-        static path, see :confval:`the docs for the config value
-        <html_static_path>`.  A full URI with scheme, like
-        ``http://example.org/foo.js``, is also supported.
+        static path , or a full URI with scheme.  The keyword arguments are
+        also accepted for attributes of ``<script>`` tag.
+
+        Example::
+
+            app.add_js_file('example.js')
+            # => <scrtipt src="_static/example.js"></script>
+
+            app.add_js_file('example.js', async="async")
+            # => <scrtipt src="_static/example.js" async="async"></script>
 
         .. versionadded:: 0.5
+
+        .. versionchanged:: 1.8
+           Renamed from ``app.add_javascript()``.
+           And it allows keyword arguments as attributes of script tag.
         """
-        logger.debug('[app] adding javascript: %r', filename)
-        from sphinx.builders.html import StandaloneHTMLBuilder
-        if '://' in filename:
-            StandaloneHTMLBuilder.script_files.append(filename)
-        else:
-            StandaloneHTMLBuilder.script_files.append(
-                posixpath.join('_static', filename))
+        self.registry.add_js_file(filename, **kwargs)
 
     def add_css_file(self, filename, **kwargs):
         # type: (unicode, **unicode) -> None
@@ -1039,8 +1067,6 @@ class Sphinx(object):
            And it allows keyword arguments as attributes of link tag.
         """
         logger.debug('[app] adding stylesheet: %r', filename)
-        if '://' not in filename:
-            filename = posixpath.join('_static', filename)
         self.registry.add_css_files(filename, **kwargs)
 
     def add_stylesheet(self, filename, alternate=False, title=None):

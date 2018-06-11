@@ -17,25 +17,79 @@ Incompatible changes
   a ``conf.py`` file sphinx-build generates.
 * The ``gettext_compact`` attribute is removed from ``document.settings``
   object.  Please use ``config.gettext_compact`` instead.
+* The processing order on reading phase is changed.  smart_quotes, sphinx
+  domains, :event:`doctree-read` event and versioning doctrees are invoked
+  earlier than so far.  For more details, please read a description of
+  :py:meth:`.Sphinx.add_transform()`
+* #4827: All ``substitution_definition`` nodes are removed from doctree on
+  reading phase
+* ``docutils.conf`` on ``$HOME`` and ``/etc`` directories are ignored.  Only
+  ``docutils.conf`` on confdir is refered.
+* #789: ``:samp:`` role supports to escape curly braces with backslash
+* #4811: The files under :confval:`html_static_path` are excluded from source
+  files.
+* latex: Use ``\sphinxcite`` for citation references instead ``\hyperref``
+* The config value ``viewcode_import`` is renamed to
+  :confval:`viewcode_follow_imported_members` (refs: #4035)
+* #1857: latex: :confval:`latex_show_pagerefs` does not add pagerefs for
+  citations
+* #4648: latex: Now "rubric" elements are rendered as unnumbered section title
+* #4983: html: The URL for the productionlist has been changed
+* Modifying a template variable ``script_files`` in templates is allowed now.
+  Please use ``app.add_js_file()`` instead.
 
 Deprecated
 ----------
 
 * :confval:`source_parsers` is deprecated
-* ``Application.import_object()`` is deprecated
 * Drop function based directive support.  For now, Sphinx only supports class
   based directives.
-* ``Sphinx.add_source_parser()`` has changed;  the *suffix* argument has
-  been deprecated
 * ``sphinx.util.docutils.directive_helper()`` is deprecated
 * ``sphinx.cmdline`` is deprecated
-* All ``env.update()``, ``env._read_serial()`` and ``env._read_parallel()`` are
-  deprecated
 * ``sphinx.locale.l_()`` is deprecated
 * #2157: helper function ``warn()`` for HTML themes is deprecated
-* ``env._nitpick_ignore`` is deprecated
 * ``app.override_domain()`` is deprecated
 * ``app.add_stylesheet()`` is deprecated
+* ``app.add_javascript()`` is deprecated
+* ``app.import_object()`` is deprecated
+* ``app.add_source_parser()`` has changed;  the *suffix* argument has been
+  deprecated
+* ``sphinx.versioning.prepare()`` is deprecated
+* ``Config.__init__()`` has changed;  the *dirname*, *filename* and *tags*
+  argument has been deprecated
+* ``Config.check_types()`` is deprecated
+* ``Config.check_unicode()`` is deprecated
+* ``sphinx.application.CONFIG_FILENAME`` is deprecated
+* ``highlightlang`` directive is deprecated
+* ``BuildEnvironment.load()`` is deprecated
+* ``BuildEnvironment.loads()`` is deprecated
+* ``BuildEnvironment.frompickle()`` is deprecated
+* ``env.read_doc()`` is deprecated
+* ``env.update()`` is deprecated
+* ``env._read_serial()`` is deprecated
+* ``env._read_parallel()`` is deprecated
+* ``env.write_doctree()`` is deprecated
+* ``env._nitpick_ignore`` is deprecated
+* ``env.dump()`` is deprecated
+* ``env.dumps()`` is deprecated
+* ``env.topickle()`` is deprecated
+* ``sphinx.writers.latex.Table.caption_footnotetexts`` is deprecated
+* ``sphinx.writers.latex.Table.header_footnotetexts`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.footnotestack`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.in_container_literal_block`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.next_section_ids`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.next_hyperlink_ids`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.restrict_footnote()`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.unrestrict_footnote()`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.push_hyperlink_ids()`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.pop_hyperlink_ids()`` is deprecated
+* ``sphinx.writers.latex.LaTeXTranslator.bibitems`` is deprecated
+* ``sphinx.writers.latex.ExtBabel.get_shorthandoff()`` is deprecated
+* ``sphinx.ext.mathbase.math`` node is deprecated
+* ``sphinx.ext.mathbase.displaymath`` node is deprecated
+* ``sphinx.ext.mathbase.eqref`` node is deprecated
+* ``sphinx.ext.mathbase.is_in_section_title()`` is deprecated
+* ``sphinx.ext.mathbase.MathDomain`` is deprecated
 
 For more details, see `deprecation APIs list
 <http://www.sphinx-doc.org/en/master/extdev/index.html#deprecated-apis>`_
@@ -61,6 +115,28 @@ Features added
   fontsize in code-blocks (refs: #4793)
 * Add :confval:`html_css_files` and :confval:`epub_css_files` for adding CSS
   files from configuration
+* Add :confval:`html_js_files` for adding JS files from configuration
+* #4834: Ensure set object descriptions are reproducible.
+* #4828: Allow to override :confval:`numfig_format` partially.  Full definition
+  is not needed.
+* Improve warning messages during including (refs: #4818)
+* LaTeX: separate customizability of :rst:role:`guilabel` and
+  :rst:role:`menuselection` (refs: #4830)
+* Add ``Config.read()`` classmethod to create a new config object from
+  configuration file
+* #4866: Wrap graphviz diagrams in ``<div>`` tag
+* Add :event:`viewcode-find-source` event to viewcode extension.
+* #4785: napoleon: Add strings to translation file for localisation
+* #4927: Display a warning when invalid values are passed to linenothreshold
+  option of highlight directive
+* C++, add a ``cpp:texpr`` role as a sibling to ``cpp:expr``.
+* C++, add support for unions.
+* C++, add support for anonymous entities using names staring with ``@``.
+  Fixes #3593 and #2683.
+* #3606: MathJax should be loaded with async attribute
+* html: Output ``canonical_url`` metadata if :confval:`html_baseurl` set (refs:
+  #4193)
+* #5029: autosummary: expose ``inherited_members`` to template
 * Add ``:continue:`` toctree option to continue (or offset)
   ``:numbered:`` toctrees (#3357)
 
@@ -68,6 +144,10 @@ Bugs fixed
 ----------
 
 * i18n: message catalogs were reset on each initialization
+* #4850: latex: footnote inside footnote was not rendered
+* #4945: i18n: fix lang_COUNTRY not fallback correctly for IndexBuilder. Thanks
+  to Shengjing Zhu.
+* #4983: productionlist directive generates invalid IDs for the tokens
 
 Testing
 --------
@@ -77,7 +157,7 @@ Features removed
 
 * ``sphinx.ext.pngmath`` extension
 
-Release 1.7.3 (in development)
+Release 1.7.6 (in development)
 ==============================
 
 Dependencies
@@ -95,15 +175,85 @@ Features added
 Bugs fixed
 ----------
 
+* #5037: LaTeX ``\sphinxupquote{}`` breaks in Russian
+* sphinx.testing uses deprecated pytest API; ``Node.get_marker(name)``
+* #5016: crashed when recommonmark.AutoStrictify is enabled
+* #5022: latex: crashed with docutils package provided by Debian/Ubuntu
+* #5009: latex: a label for table is vanished if table does not have a caption
+* #5048: crashed with numbered toctree
+
+Testing
+--------
+
+Release 1.7.5 (released May 29, 2018)
+=====================================
+
+Bugs fixed
+----------
+
+* #4924: html search: Upper characters problem in any other languages
+* #4932: apidoc: some subpackage is ignored if sibling subpackage contains a
+  module starting with underscore
+* #4863, #4938, #4939: i18n doesn't handle node.title correctly tat used for
+  contents, topic, admonition, table and section.
+* #4913: i18n: literal blocks in bullet list are not translated
+* #4962: C++, raised TypeError on duplicate declaration.
+* #4825: C++, properly parse expr roles and give better error messages when
+  (escaped) line breaks are present.
+* C++, properly use ``desc_addname`` nodes for prefixes of names.
+* C++, parse pack expansions in function calls.
+* #4915, #4916: links on search page are broken when using dirhtml builder
+* #4969: autodoc: constructor method should not have return annotation
+* latex: deeply nested enumerated list which is beginning with non-1 causes
+  LaTeX engine crashed
+* #4978: latex: shorthandoff is not set up for Brazil locale
+* #4928: i18n: Ignore dot-directories like .git/ in LC_MESSAGES/
+* #4946: py domain: type field could not handle "None" as a type
+* #4979: latex: Incorrect escaping of curly braces in index entries
+* #4956: autodoc: Failed to extract document from a subclass of the class on
+  mocked module
+* #4973: latex: glossary directive adds whitespace to each item
+* #4980: latex: Explicit labels on code blocks are duplicated
+* #4919: node.asdom() crashes if toctree has :numbered: option
+* #4914: autodoc: Parsing error when using dataclasses without default values
+* #4931: autodoc: crashed when handler for autodoc-skip-member raises an error
+* #4931: autodoc: crashed when subclass of mocked class are processed by
+  napoleon module
+* #5007: sphinx-build crashes when error log contains a "%" character
+
+Release 1.7.4 (released Apr 25, 2018)
+=====================================
+
+Bugs fixed
+----------
+
+* #4885, #4887: domains: Crashed with duplicated objects
+* #4889: latex: sphinx.writers.latex causes recusrive import
+
+Release 1.7.3 (released Apr 23, 2018)
+=====================================
+
+Bugs fixed
+----------
+
 * #4769: autodoc loses the first staticmethod parameter
 * #4790: autosummary: too wide two column tables in PDF builds
 * #4795: Latex customization via ``_templates/longtable.tex_t`` is broken
 * #4789: imgconverter: confused by convert.exe of Windows
 * #4783: On windows, Sphinx crashed when drives of srcdir and outdir are
   different
-
-Testing
---------
+* #4812: autodoc ignores type annotated variables
+* #4817: wrong URLs on warning messages
+* #4784: latex: :confval:`latex_show_urls` assigns incorrect footnote numbers if
+  hyperlinks exists inside substitutions
+* #4837: latex with class memoir Error: Font command ``\sf`` is not supported
+* #4803: latex: too slow in proportion to number of auto numbered footnotes
+* #4838: htmlhelp: The entries in .hhp file is not ordered
+* toctree directive tries to glob for URL having query_string
+* #4871: html search: Upper characters problem in German
+* #4717: latex: Compilation for German docs failed with LuaLaTeX and XeLaTeX
+* #4459: duplicated labels detector does not work well in parallel build
+* #4878: Crashed with extension which returns invalid metadata
 
 Release 1.7.2 (released Mar 21, 2018)
 =====================================
@@ -135,6 +285,7 @@ Bugs fixed
 * #1435: qthelp builder should htmlescape keywords
 * epub: Fix docTitle elements of toc.ncx is not escaped
 * #4520: apidoc: Subpackage not in toc (introduced in 1.6.6) now fixed
+* #4767: html: search highlighting breaks mathjax equations
 
 Release 1.7.1 (released Feb 23, 2018)
 =====================================
@@ -210,6 +361,8 @@ Incompatible changes
   (refs: #4295)
 * #4246: Limit width of text body for all themes. Conifigurable via theme
   options ``body_min_width`` and ``body_max_width``.
+* #4771: apidoc: The ``exclude_patterns`` arguments are ignored if they are
+  placed just after command line options
 
 1.7.0b2
 

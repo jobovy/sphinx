@@ -12,18 +12,23 @@
 import os
 from os import path
 
-from docutils import nodes
 from docutils.frontend import OptionParser
 from docutils.io import FileOutput
 from six import text_type
 
 from sphinx import package_dir, addnodes, highlighting
 from sphinx.builders import Builder
+from sphinx.builders.latex.transforms import (
+    BibliographyTransform, CitationReferenceTransform, MathReferenceTransform,
+    FootnoteDocnameUpdater, LaTeXFootnoteTransform, LiteralBlockTransform,
+    ShowUrlsTransform, DocumentTargetTransform,
+)
 from sphinx.config import string_classes, ENUM
 from sphinx.environment import NoUri
 from sphinx.environment.adapters.asset import ImageAdapter
 from sphinx.errors import SphinxError, ConfigError
 from sphinx.locale import _, __
+from sphinx.transforms import SphinxTransformer
 from sphinx.util import texescape, logging, status_iterator
 from sphinx.util.console import bold, darkgreen  # type: ignore
 from sphinx.util.docutils import new_document
@@ -34,6 +39,7 @@ from sphinx.writers.latex import LaTeXWriter, LaTeXTranslator
 
 if False:
     # For type annotation
+    from docutils import nodes  # NOQA
     from typing import Any, Dict, Iterable, List, Tuple, Union  # NOQA
     from sphinx.application import Sphinx  # NOQA
     from sphinx.config import Config  # NOQA
@@ -144,6 +150,7 @@ class LaTeXBuilder(Builder):
                 docname, toctree_only,
                 appendices=((docclass != 'howto') and self.config.latex_appendices or []))
             doctree['tocdepth'] = tocdepth
+            self.apply_transforms(doctree)
             self.post_process_images(doctree)
             logger.info(__("writing... "), nonl=1)
             doctree.settings = docsettings
@@ -168,6 +175,7 @@ class LaTeXBuilder(Builder):
 
     def assemble_doctree(self, indexfile, toctree_only, appendices):
         # type: (unicode, bool, List[unicode]) -> nodes.Node
+        from docutils import nodes  # NOQA
         self.docnames = set([indexfile] + appendices)
         logger.info(darkgreen(indexfile) + " ", nonl=1)
         tree = self.env.get_doctree(indexfile)
@@ -209,6 +217,17 @@ class LaTeXBuilder(Builder):
                 pass
             pendingnode.replace_self(newnodes)
         return largetree
+
+    def apply_transforms(self, doctree):
+        # type: (nodes.document) -> None
+        transformer = SphinxTransformer(doctree)
+        transformer.set_environment(self.env)
+        transformer.add_transforms([BibliographyTransform,
+                                    ShowUrlsTransform,
+                                    LaTeXFootnoteTransform,
+                                    LiteralBlockTransform,
+                                    DocumentTargetTransform])
+        transformer.apply_transforms()
 
     def finish(self):
         # type: () -> None
@@ -303,7 +322,10 @@ def default_latex_docclass(config):
 def setup(app):
     # type: (Sphinx) -> Dict[unicode, Any]
     app.add_builder(LaTeXBuilder)
+    app.add_post_transform(CitationReferenceTransform)
+    app.add_post_transform(MathReferenceTransform)
     app.connect('config-inited', validate_config_values)
+    app.add_transform(FootnoteDocnameUpdater)
 
     app.add_config_value('latex_engine', default_latex_engine, None,
                          ENUM('pdflatex', 'xelatex', 'lualatex', 'platex'))
@@ -315,7 +337,7 @@ def setup(app):
     app.add_config_value('latex_appendices', [], None)
     app.add_config_value('latex_use_latex_multicolumn', False, None)
     app.add_config_value('latex_toplevel_sectioning', None, None,
-                         ENUM('part', 'chapter', 'section'))
+                         ENUM(None, 'part', 'chapter', 'section'))
     app.add_config_value('latex_domain_indices', True, None, [list])
     app.add_config_value('latex_show_urls', 'no', None)
     app.add_config_value('latex_show_pagerefs', False, None)

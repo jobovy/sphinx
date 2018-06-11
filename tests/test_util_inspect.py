@@ -280,6 +280,10 @@ def test_Signature_annotations():
     sig = inspect.Signature(f11).format_args()
     assert sig == '(x: CustomAnnotation, y: 123) -> None'
 
+    # has_retval=False
+    sig = inspect.Signature(f11, has_retval=False).format_args()
+    assert sig == '(x: CustomAnnotation, y: 123)'
+
 
 def test_safe_getattr_with_default():
     class Foo(object):
@@ -344,6 +348,24 @@ def test_dictionary_sorting():
     dictionary = {"c": 3, "a": 1, "d": 2, "b": 4}
     description = inspect.object_description(dictionary)
     assert description == "{'a': 1, 'b': 4, 'c': 3, 'd': 2}"
+
+
+def test_set_sorting():
+    set_ = set("gfedcba")
+    description = inspect.object_description(set_)
+    if PY3:
+        assert description == "{'a', 'b', 'c', 'd', 'e', 'f', 'g'}"
+    else:
+        assert description == "set(['a', 'b', 'c', 'd', 'e', 'f', 'g'])"
+
+
+def test_set_sorting_fallback():
+    set_ = set((None, 1))
+    description = inspect.object_description(set_)
+    if PY3:
+        assert description in ("{1, None}", "{None, 1}")
+    else:
+        assert description in ("set([1, None])", "set([None, 1])")
 
 
 def test_dict_customtype():

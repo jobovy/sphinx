@@ -13,6 +13,7 @@ import re
 
 from docutils.core import Publisher
 from docutils.io import FileInput, NullOutput
+from docutils.parsers.rst import Parser as RSTParser
 from docutils.readers import standalone
 from docutils.statemachine import StringList, string2lines
 from docutils.writers import UnfilteredWriter
@@ -24,15 +25,17 @@ from sphinx.transforms import (
     ApplySourceWorkaround, ExtraTranslatableNodes, CitationReferences,
     DefaultSubstitutions, MoveModuleTargets, HandleCodeBlocks, SortIds,
     AutoNumbering, AutoIndexUpgrader, FilterSystemMessages,
-    UnreferencedFootnotesDetector, SphinxSmartQuotes, ManpageLink
+    UnreferencedFootnotesDetector, SphinxSmartQuotes, DoctreeReadEvent, ManpageLink
 )
 from sphinx.transforms import SphinxTransformer
 from sphinx.transforms.compact_bullet_list import RefOnlyBulletListTransform
 from sphinx.transforms.i18n import (
     PreserveTranslatableMessages, Locale, RemoveTranslatableInline,
 )
+from sphinx.transforms.references import SphinxDomains, SubstitutionDefinitionsRemover
 from sphinx.util import logging
 from sphinx.util.docutils import LoggingReporter
+from sphinx.versioning import UIDTransform
 
 if False:
     # For type annotation
@@ -93,7 +96,9 @@ class SphinxStandaloneReader(SphinxBaseReader):
                   Locale, CitationReferences, DefaultSubstitutions, MoveModuleTargets,
                   HandleCodeBlocks, AutoNumbering, AutoIndexUpgrader, SortIds,
                   RemoveTranslatableInline, FilterSystemMessages, RefOnlyBulletListTransform,
-                  UnreferencedFootnotesDetector, SphinxSmartQuotes, ManpageLink
+                  UnreferencedFootnotesDetector, SphinxSmartQuotes, ManpageLink,
+                  SphinxDomains, SubstitutionDefinitionsRemover, DoctreeReadEvent,
+                  UIDTransform,
                   ]  # type: List[Transform]
 
     def __init__(self, app, *args, **kwargs):
@@ -116,7 +121,8 @@ class SphinxI18nReader(SphinxBaseReader):
                   DefaultSubstitutions, MoveModuleTargets, HandleCodeBlocks,
                   AutoNumbering, SortIds, RemoveTranslatableInline,
                   FilterSystemMessages, RefOnlyBulletListTransform,
-                  UnreferencedFootnotesDetector, SphinxSmartQuotes, ManpageLink]
+                  UnreferencedFootnotesDetector, SphinxSmartQuotes, ManpageLink,
+                  SubstitutionDefinitionsRemover]
 
     def set_lineno_for_reporter(self, lineno):
         # type: (int) -> None
@@ -299,6 +305,13 @@ def read_doc(app, env, filename):
     source = input_class(app, env, source=None, source_path=filename,
                          encoding=env.config.source_encoding)
     parser = app.registry.create_source_parser(app, filetype)
+    if parser.__class__.__name__ == 'CommonMarkParser' and parser.settings_spec == ():
+        # a workaround for recommonmark
+        #   If recommonmark.AutoStrictify is enabled, the parser invokes reST parser
+        #   internally.  But recommonmark-0.4.0 does not provide settings_spec for reST
+        #   parser.  As a workaround, this copies settings_spec for RSTParser to the
+        #   CommonMarkParser.
+        parser.settings_spec = RSTParser.settings_spec
 
     pub = Publisher(reader=reader,
                     parser=parser,

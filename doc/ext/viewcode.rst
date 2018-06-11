@@ -15,6 +15,19 @@ a highlighted version of the source code, and a link will be added to all object
 descriptions that leads to the source code of the described object.  A link back
 from the source to the description will also be inserted.
 
+.. warning::
+
+   Basically, ``viewcode`` extension will import the modules being linked to.
+   If any modules have side effects on import, these will be executed when
+   ``sphinx-build`` is run.
+
+   If you document scripts (as opposed to library modules), make sure their
+   main routine is protected by a ``if __name__ == '__main__'`` condition.
+
+   In addition, if you don't want to import the modules by ``viewcode``,
+   you can tell the location of the location of source code to ``viewcode``
+   using :event:`viewcode-find-source` event.
+
 This extension works only on HTML related builders like ``html``,
 ``applehelp``, ``devhelp``, ``htmlhelp``, ``qthelp`` and so on except
 ``singlehtml``. By default ``epub`` builder doesn't
@@ -22,23 +35,17 @@ support this extension (see :confval:`viewcode_enable_epub`).
 
 There is an additional config value:
 
-.. confval:: viewcode_import
+.. confval:: viewcode_follow_imported_members
 
    If this is ``True``, viewcode extension will follow alias objects that
    imported from another module such as functions, classes and attributes.
    As side effects, this option
    else they produce nothing.  The default is ``True``.
 
-   .. warning::
-
-      :confval:`viewcode_import` **imports** the modules to be followed real
-      location.  If any modules have side effects on import, these will be
-      executed by ``viewcode`` when ``sphinx-build`` is run.
-
-      If you document scripts (as opposed to library modules), make sure their
-      main routine is protected by a ``if __name__ == '__main__'`` condition.
-
    .. versionadded:: 1.3
+
+   .. versionchanged:: 1.8
+      Renamed from ``viewcode_import`` to ``viewcode_follow_imported_members``.
 
 .. confval:: viewcode_enable_epub
 
@@ -62,3 +69,17 @@ There is an additional config value:
       Some reader's rendering result are corrupted and
       `epubcheck <https://github.com/IDPF/epubcheck>`_'s score
       becomes worse even if the reader supports.
+
+.. event:: viewcode-find-source (app, modname)
+
+   .. versionadded:: 1.8
+
+   Find the source code for a module.
+   An event handler for this event should return
+   a tuple of the source code itself and a dictionary of tags.
+   The dictionary maps the name of a class, function, attribute, etc
+   to a tuple of its type, the start line number, and the end line number.
+   The type should be one of "class", "def", or "other".
+
+   :param app: The Sphinx application object.
+   :param modname: The name of the module to find source code for.
