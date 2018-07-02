@@ -71,6 +71,14 @@ HYPERLINK_SUPPORT_NODES = (
     nodes.section,
     captioned_literal_block,
 )
+ENUMERATE_LIST_STYLE = defaultdict(lambda: r'\arabic',
+                                   {
+                                       'arabic': r'\arabic',
+                                       'loweralpha': r'\alph',
+                                       'upperalpha': r'\Alph',
+                                       'lowerroman': r'\roman',
+                                       'upperroman': r'\Roman',
+                                   })  # type: Dict[unicode, unicode]
 
 DEFAULT_SETTINGS = {
     'latex_engine':    'pdflatex',
@@ -247,7 +255,7 @@ class ExtBabel(Babel):
 
     def get_mainlanguage_options(self):
         # type: () -> unicode
-        """Return options for polyglossia's ``\setmainlanguage``."""
+        """Return options for polyglossia's ``\\setmainlanguage``."""
         if self.use_polyglossia is False:
             return None
         elif self.language == 'german':
@@ -1478,6 +1486,15 @@ class LaTeXTranslator(nodes.NodeVisitor):
 
     def visit_enumerated_list(self, node):
         # type: (nodes.Node) -> None
+        def get_enumtype(node):
+            # type: (nodes.Node) -> unicode
+            enumtype = node.get('enumtype', 'arabic')
+            if 'alpha' in enumtype and 26 < node.get('start', 0) + len(node):
+                # fallback to arabic if alphabet counter overflows
+                enumtype = 'arabic'
+
+            return enumtype
+
         def get_nested_level(node):
             # type: (nodes.Node) -> int
             if node is None:
@@ -1487,10 +1504,18 @@ class LaTeXTranslator(nodes.NodeVisitor):
             else:
                 return get_nested_level(node.parent)
 
+        enum = "enum%s" % toRoman(get_nested_level(node)).lower()
+        enumnext = "enum%s" % toRoman(get_nested_level(node) + 1).lower()
+        style = ENUMERATE_LIST_STYLE.get(get_enumtype(node))
+
         self.body.append('\\begin{enumerate}\n')
+        self.body.append('\\def\\the%s{%s{%s}}\n' % (enum, style, enum))
+        self.body.append('\\def\\label%s{%s\\the%s %s}\n' %
+                         (enum, node['prefix'], enum, node['suffix']))
+        self.body.append('\\makeatletter\\def\\p@%s{\\p@%s %s\\the%s %s}\\makeatother\n' %
+                         (enumnext, enum, node['prefix'], enum, node['suffix']))
         if 'start' in node:
-            enum_depth = "enum%s" % toRoman(get_nested_level(node)).lower()
-            self.body.append('\\setcounter{%s}{%d}\n' % (enum_depth, node['start'] - 1))
+            self.body.append('\\setcounter{%s}{%d}\n' % (enum, node['start'] - 1))
         if self.table:
             self.table.has_problematic = True
 
@@ -1894,8 +1919,8 @@ class LaTeXTranslator(nodes.NodeVisitor):
         # type: (nodes.Node, Pattern) -> None
         def escape(value):
             value = self.encode(value)
-            value = value.replace(r'\{', r'\sphinxleftcurlybrace')
-            value = value.replace(r'\}', r'\sphinxrightcurlybrace')
+            value = value.replace(r'\{', r'{\sphinxleftcurlybrace}')
+            value = value.replace(r'\}', r'{\sphinxrightcurlybrace}')
             return value
 
         if not node.get('inline', True):

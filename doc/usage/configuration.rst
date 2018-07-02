@@ -65,8 +65,9 @@ General configuration
 
 .. confval:: extensions
 
-   A list of strings that are module names of :ref:`extensions`. These can be
-   extensions coming with Sphinx (named ``sphinx.ext.*``) or custom ones.
+   A list of strings that are module names of :doc:`extensions
+   <extensions/index>`. These can be extensions coming with Sphinx (named
+   ``sphinx.ext.*``) or custom ones.
 
    Note that you can extend :data:`sys.path` within the conf file if your
    extensions live in another directory -- but make sure you use absolute paths.
@@ -142,7 +143,7 @@ General configuration
    .. versionadded:: 1.3
 
    .. deprecated:: 1.8
-      Now Sphinx provides an API :meth:`Sphinx.add_source_parser` to register
+      Now Sphinx provides an API :meth:`.Sphinx.add_source_parser` to register
       a source parser.  Please use it instead.
 
 .. confval:: master_doc
