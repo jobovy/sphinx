@@ -37,8 +37,8 @@ if 'PYTHONWARNINGS' not in os.environ:
 warnings.filterwarnings('ignore', "'U' mode is deprecated",
                         DeprecationWarning, module='docutils.io')
 
-__version__ = '1.8.0+'
-__released__ = '1.8.0'  # used when Sphinx builds its own docs
+__version__ = '2.0.0+'
+__released__ = '2.0.0'  # used when Sphinx builds its own docs
 
 #: Version info for better programmatic use.
 #:
@@ -48,7 +48,7 @@ __released__ = '1.8.0'  # used when Sphinx builds its own docs
 #:
 #: .. versionadded:: 1.2
 #:    Before version 1.2, check the string ``sphinx.__version__``.
-version_info = (1, 8, 0, 'beta', 0)
+version_info = (2, 0, 0, 'beta', 0)
 
 package_dir = path.abspath(path.dirname(__file__))
 
@@ -71,16 +71,16 @@ if __version__.endswith('+'):
         pass
 
 
-def main(*args, **kwargs):
-    # type: (Any, Any) -> int
+def main(argv=sys.argv):  # type: ignore
+    # type: (List[unicode]) -> int
     from .cmd import build
     warnings.warn(
         '`sphinx.main()` has moved to `sphinx.cmd.build.main()`.',
         RemovedInSphinx20Warning,
         stacklevel=2,
     )
-    args = args[1:]  # skip first argument to adjust arguments (refs: #4615)
-    return build.main(*args, **kwargs)
+    argv = argv[1:]  # skip first argument to adjust arguments (refs: #4615)
+    return build.main(argv)
 
 
 def build_main(argv=sys.argv):
