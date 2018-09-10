@@ -181,7 +181,7 @@ class TocTreeCollector(EnvironmentCollector):
                         secnums[subnode[0]['anchorname']] = None
                     subnode[0]['secnumber'] = out
                     if titlenode:
-                        titlenode['secnumber'] = number
+                        titlenode['secnumber'] = out
                         titlenode = None
                 elif isinstance(subnode, addnodes.toctree):
                     _walk_toctree(subnode, depth)
