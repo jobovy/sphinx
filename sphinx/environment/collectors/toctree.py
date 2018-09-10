@@ -170,11 +170,16 @@ class TocTreeCollector(EnvironmentCollector):
                     numstack[-1] += 1
                     if depth > 0:
                         number = list(numstack)
-                        secnums[subnode[0]['anchorname']] = tuple(numstack)
+                        if toctreenode.get('alpha', 1):
+                            out= ['0ABCDEFGHIJKLMNOPQRSTUVWXYZ'[number[0]]]
+                            out.extend(number[1:])
+                        else:
+                            out= number
+                        secnums[subnode[0]['anchorname']] = out #tuple(numstack)
                     else:
                         number = None
                         secnums[subnode[0]['anchorname']] = None
-                    subnode[0]['secnumber'] = number
+                    subnode[0]['secnumber'] = out
                     if titlenode:
                         titlenode['secnumber'] = number
                         titlenode = None

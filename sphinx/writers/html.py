@@ -267,8 +267,9 @@ class HTMLTranslator(BaseTranslator):
         self.body.append(self.starttag(node, 'a', '', **atts))
 
         if node.get('secnumber'):
+            secnum= node['secnumber']
             self.body.append(('%s' + self.secnumber_suffix) %
-                             '.'.join(map(str, node['secnumber'])))
+                             '.'.join(map(str,secnum)))
 
     def visit_number_reference(self, node):
         # type: (nodes.Node) -> None
@@ -303,7 +304,8 @@ class HTMLTranslator(BaseTranslator):
     def add_secnumber(self, node):
         # type: (nodes.Node) -> None
         if node.get('secnumber'):
-            self.body.append('.'.join(map(str, node['secnumber'])) +
+            secnum= node['secnumber']
+            self.body.append('.'.join(map(str, secnum)) +
                              self.secnumber_suffix)
         elif isinstance(node.parent, nodes.section):
             if self.builder.name == 'singlehtml':
