@@ -40,10 +40,12 @@ you can also enable the :mod:`napoleon <sphinx.ext.napoleon>` extension.
 :mod:`napoleon <sphinx.ext.napoleon>` is a preprocessor that converts your
 docstrings to correct reStructuredText before :mod:`autodoc` processes them.
 
-.. _Google:
-   https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings
-.. _NumPy:
-   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+.. _Google: https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings
+.. _NumPy: https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+
+
+Directives
+----------
 
 :mod:`autodoc` provides several directives that are versions of the usual
 :rst:dir:`py:module`, :rst:dir:`py:class` and so forth.  On parsing time, they
@@ -233,6 +235,7 @@ inserting them into the page source under a suitable :rst:dir:`py:module`,
 
 
 .. rst:directive:: autofunction
+                   autodecorator
                    autodata
                    automethod
                    autoattribute
@@ -240,20 +243,22 @@ inserting them into the page source under a suitable :rst:dir:`py:module`,
    These work exactly like :rst:dir:`autoclass` etc.,
    but do not offer the options used for automatic member documentation.
 
-   :rst:dir:`autodata` and :rst:dir:`autoattribute` support
-   the ``annotation`` option.
-   Without this option, the representation of the object
-   will be shown in the documentation.
-   When the option is given without arguments,
-   only the name of the object will be printed::
+   :rst:dir:`autodata` and :rst:dir:`autoattribute` support the ``annotation``
+   option.  The option controls how the value of variable is shown.  If specified
+   without arguments, only the name of the variable will be printed, and its value
+   is not shown::
 
       .. autodata:: CD_DRIVE
          :annotation:
 
-   You can tell sphinx what should be printed after the name::
+   If the option specified with arguments, it is printed after the name as a value
+   of the variable::
 
       .. autodata:: CD_DRIVE
          :annotation: = your CD device name
+
+   By default, without ``annotation`` option, Sphinx tries to obtain the value of
+   the variable and print it after the name.
 
    For module data members and class attributes, documentation can either be put
    into a comment with special formatting (using a ``#:`` to start the comment
@@ -289,10 +294,11 @@ inserting them into the page source under a suitable :rst:dir:`py:module`,
       docstrings.
    .. versionchanged:: 1.1
       Comment docs are now allowed on the same line after an assignment.
-
    .. versionchanged:: 1.2
       :rst:dir:`autodata` and :rst:dir:`autoattribute` have an ``annotation``
       option.
+   .. versionchanged:: 2.0
+      :rst:dir:`autodecorator` added.
 
    .. note::
 
@@ -306,7 +312,10 @@ inserting them into the page source under a suitable :rst:dir:`py:module`,
       well-behaved decorating functions.
 
 
-There are also new config values that you can set:
+Configuration
+-------------
+
+There are also config values that you can set:
 
 .. confval:: autoclass_content
 
@@ -362,25 +371,32 @@ There are also new config values that you can set:
 .. confval:: autodoc_default_options
 
    The default options for autodoc directives.  They are applied to all autodoc
-   directives automatically.  It must be a dictionally which maps option names
+   directives automatically.  It must be a dictionary which maps option names
    to the values.  For example::
 
        autodoc_default_options = {
            'members': 'var1, var2',
            'member-order': 'bysource',
            'special-members': '__init__',
-           'undoc-members': None,
+           'undoc-members': True,
            'exclude-members': '__weakref__'
        }
 
-   Setting ``None`` is equivalent to giving the option name in the list format
-   (i.e. it means "yes/true/on").
+   Setting ``None`` or ``True`` to the value is equivalent to giving only the
+   option name to the directives.
 
-   The supported options are ``'members'``, ``'undoc-members'``,
-   ``'private-members'``, ``'special-members'``, ``'inherited-members'``,
-   ``'show-inheritance'``, ``'ignore-module-all'`` and ``'exclude-members'``.
+   The supported options are ``'members'``, ``'member-order'``,
+   ``'undoc-members'``, ``'private-members'``, ``'special-members'``,
+   ``'inherited-members'``, ``'show-inheritance'``, ``'ignore-module-all'``,
+   ``'imported-members'`` and ``'exclude-members'``.
 
    .. versionadded:: 1.8
+
+   .. versionchanged:: 2.0
+      Accepts ``True`` as a value.
+
+   .. versionchanged:: 2.1
+      Added ``'imported-members'``.
 
 .. confval:: autodoc_docstring_signature
 
@@ -415,11 +431,21 @@ There are also new config values that you can set:
       This config value only requires to declare the top-level modules that
       should be mocked.
 
+.. confval:: autodoc_typehints
+
+   This value controls how to represents typehints.  The setting takes the
+   following values:
+
+   * ``'signature'`` -- Show typehints as its signature (default)
+   * ``'none'`` -- Do not show typehints
+
+   .. versionadded:: 2.1
+
 .. confval:: autodoc_warningiserror
 
    This value controls the behavior of :option:`sphinx-build -W` during
    importing modules.
-   If ``False`` is given, autodoc forcely suppresses the error if the imported
+   If ``False`` is given, autodoc forcedly suppresses the error if the imported
    module emits warnings.  By default, ``True``.
 
 .. confval:: autodoc_inherit_docstrings
@@ -431,6 +457,16 @@ There are also new config values that you can set:
    The default is ``True``.
 
    .. versionadded:: 1.7
+
+.. confval:: suppress_warnings
+   :noindex:
+
+   :mod:`autodoc` supports to suppress warning messages via
+   :confval:`suppress_warnings`.  It allows following warnings types in
+   addition:
+
+   * autodoc
+   * autodoc.import_object
 
 
 Docstring preprocessing

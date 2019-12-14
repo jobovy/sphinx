@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
     test_pycode_parser
     ~~~~~~~~~~~~~~~~~~
@@ -12,7 +11,6 @@
 import sys
 
 import pytest
-from six import PY2
 
 from sphinx.pycode.parser import Parser
 
@@ -135,7 +133,6 @@ def test_complex_assignment():
     assert parser.definitions == {}
 
 
-@pytest.mark.skipif(PY2, reason='tests for py3 syntax')
 def test_complex_assignment_py3():
     source = ('a, *b, c = (1, 2, 3, 4)  #: unpack assignment\n'
               'd, *self.attr = (5, 6, 7)  #: unpack assignment2\n'
@@ -150,6 +147,21 @@ def test_complex_assignment_py3():
                                ('', 'e'): 'unpack assignment3',
                                }
     assert parser.definitions == {}
+
+
+def test_assignment_in_try_clause():
+    source = ('try:\n'
+              '    a = None  #: comment\n'
+              'except:\n'
+              '    b = None  #: ignored\n'
+              'else:\n'
+              '    c = None  #: comment\n')
+    parser = Parser(source)
+    parser.parse()
+    assert parser.comments == {('', 'a'): 'comment',
+                               ('', 'c'): 'comment'}
+    assert parser.deforders == {'a': 0,
+                                'c': 1}
 
 
 def test_obj_assignment():
@@ -315,6 +327,37 @@ def test_decorators():
                                   'func3': ('def', 7, 9),
                                   'Foo': ('class', 11, 15),
                                   'Foo.method': ('def', 13, 15)}
+
+
+def test_async_function_and_method():
+    source = ('async def some_function():\n'
+              '    """docstring"""\n'
+              '    a = 1 + 1  #: comment1\n'
+              '\n'
+              'class Foo:\n'
+              '    async def method(self):\n'
+              '        pass\n')
+    parser = Parser(source)
+    parser.parse()
+    assert parser.definitions == {'some_function': ('def', 1, 3),
+                                  'Foo': ('class', 5, 7),
+                                  'Foo.method': ('def', 6, 7)}
+
+
+def test_imports():
+    source = ('import sys\n'
+              'from os import environment, path\n'
+              '\n'
+              'import sphinx as Sphinx\n'
+              'from sphinx.application import Sphinx as App\n')
+    parser = Parser(source)
+    parser.parse()
+    assert parser.definitions == {}
+    assert parser.deforders == {'sys': 0,
+                                'environment': 1,
+                                'path': 2,
+                                'Sphinx': 3,
+                                'App': 4}
 
 
 def test_formfeed_char():

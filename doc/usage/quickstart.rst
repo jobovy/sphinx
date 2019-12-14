@@ -6,7 +6,7 @@ Once Sphinx is :doc:`installed </usage/installation>`, you can proceed with
 setting up your first Sphinx project. To ease the process of getting started,
 Sphinx provides a tool, :program:`sphinx-quickstart`, which will generate a
 documentation source directory and populate it with some defaults. We're going
-to use the :program:`sphinx-quickstart` tool here, though it's use by no means
+to use the :program:`sphinx-quickstart` tool here, though its use is by no means
 necessary.
 
 
@@ -26,7 +26,7 @@ configuration values from a few questions it asks you. To use this, run:
 
    $ sphinx-quickstart
 
-Answer each question asked. Be sure to say yes to the ``autodoc`` extension, as
+Answer each question asked. Be sure to say "yes" to the ``autodoc`` extension, as
 we will use this later.
 
 There is also an automatic "API documentation" generator called
@@ -103,7 +103,7 @@ In Sphinx source files, you can use most features of standard
 For example, you can add cross-file references in a portable way (which works
 for all output types) using the :rst:role:`ref` role.
 
-For an example, if you are viewing the HTML version you can look at the source
+For an example, if you are viewing the HTML version, you can look at the source
 for this document -- use the "Show Source" link in the sidebar.
 
 .. todo:: Update the below link when we add new guides on these.
@@ -289,7 +289,7 @@ Intersphinx
 -----------
 
 Many Sphinx documents including the `Python documentation`_ are published on
-the internet.  When you want to make links to such documents from your
+the Internet.  When you want to make links to such documents from your
 documentation, you can do it with :mod:`sphinx.ext.intersphinx`.
 
 .. _Python documentation: https://docs.python.org/3
@@ -320,8 +320,8 @@ More topics to be covered
 
 - :doc:`Other extensions </usage/extensions/index>`:
 - Static files
-- :doc:`Selecting a theme </theming>`
-- :doc:`/setuptools`
+- :doc:`Selecting a theme </usage/theming>`
+- :doc:`/usage/advanced/setuptools`
 - :ref:`Templating <templating>`
 - Using extensions
 - :ref:`Writing extensions <dev-extensions>`

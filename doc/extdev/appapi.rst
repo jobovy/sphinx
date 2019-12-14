@@ -54,8 +54,6 @@ package.
 
 .. automethod:: Sphinx.add_domain(domain)
 
-.. automethod:: Sphinx.override_domain(domain)
-
 .. method:: Sphinx.add_directive_to_domain(domain, name, func, content, arguments, \*\*options)
 .. automethod:: Sphinx.add_directive_to_domain(domain, name, directiveclass)
 
@@ -115,36 +113,14 @@ Emitting events
    .. automethod:: emit_firstresult(event, \*arguments)
 
 
-Producing messages / logging
-----------------------------
-
-The application object also provides support for emitting leveled messages.
-
-.. note::
-
-   There is no "error" call: in Sphinx, errors are defined as things that stop
-   the build; just raise an exception (:exc:`sphinx.errors.SphinxError` or a
-   custom subclass) to do that.
-
-.. deprecated:: 1.6
-
-   Please use :ref:`logging-api` instead.
-
-.. automethod:: Sphinx.warn
-
-.. automethod:: Sphinx.info
-
-.. automethod:: Sphinx.verbose
-
-.. automethod:: Sphinx.debug
-
-.. automethod:: Sphinx.debug2
-
-
 Sphinx runtime information
 --------------------------
 
 The application object also provides runtime information as attributes.
+
+.. attribute:: Sphinx.project
+
+   Target project.  See :class:`.Project`.
 
 .. attribute:: Sphinx.srcdir
 
@@ -169,9 +145,9 @@ Sphinx core events
 ------------------
 
 These events are known to the core.  The arguments shown are given to the
-registered event handlers.  Use :meth:`.connect` in an extension's ``setup``
-function (note that ``conf.py`` can also have a ``setup`` function) to connect
-handlers to the events.  Example:
+registered event handlers.  Use :meth:`.Sphinx.connect` in an extension's
+``setup`` function (note that ``conf.py`` can also have a ``setup`` function) to
+connect handlers to the events.  Example:
 
 .. code-block:: python
 

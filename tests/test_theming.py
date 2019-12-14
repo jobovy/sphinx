@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     test_theming
     ~~~~~~~~~~~~
 
     Test the Theme class.
 
-    :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -75,7 +74,7 @@ def test_js_source(app, status, warning):
 
     app.builder.build(['contents'])
 
-    v = '3.2.1'
+    v = '3.4.1'
     msg = 'jquery.js version does not match to {v}'.format(v=v)
     jquery_min = (app.outdir / '_static' / 'jquery.js').text()
     assert 'jQuery v{v}'.format(v=v) in jquery_min, msg
@@ -127,4 +126,4 @@ def test_theme_sidebars(app, status, warning):
     assert '<h3><a href="#">Table of Contents</a></h3>' in result
     assert '<h3>Related Topics</h3>' not in result
     assert '<h3>This Page</h3>' not in result
-    assert '<h3>Quick search</h3>' in result
+    assert '<h3 id="searchlabel">Quick search</h3>' in result

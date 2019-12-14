@@ -57,7 +57,11 @@ style-check:
 
 .PHONY: type-check
 type-check:
-	mypy sphinx/
+	mypy sphinx
+
+.PHONY: doclinter
+doclinter:
+	python utils/doclinter.py CHANGES *.rst doc/
 
 .PHONY: pylint
 pylint:

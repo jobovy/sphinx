@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
     test_napoleon
     ~~~~~~~~~~~~~
@@ -6,14 +5,12 @@
     Tests for :mod:`sphinx.ext.napoleon.__init__` module.
 
 
-    :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 from collections import namedtuple
-from unittest import TestCase
-
-import mock
+from unittest import TestCase, mock
 
 from sphinx.application import Sphinx
 from sphinx.ext.napoleon import _process_docstring, _skip_member, Config, setup
@@ -37,7 +34,7 @@ def __special_undoc__():
     pass
 
 
-class SampleClass(object):
+class SampleClass:
     def _private_doc(self):
         """SampleClass._private_doc.DOCSTRING"""
         pass

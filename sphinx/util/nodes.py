@@ -1,40 +1,96 @@
-# -*- coding: utf-8 -*-
 """
     sphinx.util.nodes
     ~~~~~~~~~~~~~~~~~
 
     Docutils node-related utility functions for Sphinx.
 
-    :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
-from __future__ import absolute_import
 
 import re
+import warnings
+from typing import Any, Callable, Iterable, List, Set, Tuple
+from typing import cast
 
 from docutils import nodes
-from six import text_type
+from docutils.nodes import Element, Node
+from docutils.parsers.rst import Directive
+from docutils.parsers.rst.states import Inliner
+from docutils.statemachine import StringList
 
 from sphinx import addnodes
+from sphinx.deprecation import RemovedInSphinx40Warning
 from sphinx.locale import __
 from sphinx.util import logging
 
 if False:
     # For type annotation
-    from typing import Any, Callable, Iterable, List, Set, Tuple, Optional  # NOQA
-    from sphinx.builders import Builder  # NOQA
-    from sphinx.utils.tags import Tags  # NOQA
+    from typing import Type  # for python3.5.1
+    from sphinx.builders import Builder
+    from sphinx.utils.tags import Tags
 
 logger = logging.getLogger(__name__)
 
 
 # \x00 means the "<" was backslash-escaped
-explicit_title_re = re.compile(r'^(.+?)\s*(?<!\x00)<(.*?)>$', re.DOTALL)
+explicit_title_re = re.compile(r'^(.+?)\s*(?<!\x00)<([^<]*?)>$', re.DOTALL)
 caption_ref_re = explicit_title_re  # b/w compat alias
 
 
-def get_full_module_name(node):
-    # type: (nodes.Node) -> str
+class NodeMatcher:
+    """A helper class for Node.traverse().
+
+    It checks that given node is an instance of specified node-classes and it has
+    specified node-attributes.
+
+    For example, following example searches ``reference`` node having ``refdomain``
+    and ``reftype`` attributes::
+
+        matcher = NodeMatcher(nodes.reference, refdomain='std', reftype='citation')
+        doctree.traverse(matcher)
+        # => [<reference ...>, <reference ...>, ...]
+
+    A special value ``typing.Any`` matches any kind of node-attributes.  For example,
+    following example searches ``reference`` node having ``refdomain`` attributes::
+
+        from typing import Any
+        matcher = NodeMatcher(nodes.reference, refdomain=Any)
+        doctree.traverse(matcher)
+        # => [<reference ...>, <reference ...>, ...]
+    """
+
+    def __init__(self, *classes: "Type[Node]", **attrs) -> None:
+        self.classes = classes
+        self.attrs = attrs
+
+    def match(self, node: Node) -> bool:
+        try:
+            if self.classes and not isinstance(node, self.classes):
+                return False
+
+            if self.attrs:
+                if not isinstance(node, nodes.Element):
+                    return False
+
+                for key, value in self.attrs.items():
+                    if key not in node:
+                        return False
+                    elif value is Any:
+                        continue
+                    elif node.get(key) != value:
+                        return False
+
+            return True
+        except Exception:
+            # for non-Element nodes
+            return False
+
+    def __call__(self, node: Node) -> bool:
+        return self.match(node)
+
+
+def get_full_module_name(node: Node) -> str:
     """
     return full module dotted path like: 'docutils.nodes.paragraph'
 
@@ -44,8 +100,7 @@ def get_full_module_name(node):
     return '{}.{}'.format(node.__module__, node.__class__.__name__)
 
 
-def repr_domxml(node, length=80):
-    # type: (nodes.Node, Optional[int]) -> unicode
+def repr_domxml(node: Node, length: int = 80) -> str:
     """
     return DOM XML representation of the specified node like:
     '<paragraph translatable="False"><inline classes="versionmodified">New in version...'
@@ -59,14 +114,13 @@ def repr_domxml(node, length=80):
     try:
         text = node.asdom().toxml()
     except Exception:
-        text = text_type(node)
+        text = str(node)
     if length and len(text) > length:
         text = text[:length] + '...'
     return text
 
 
-def apply_source_workaround(node):
-    # type: (nodes.Node) -> None
+def apply_source_workaround(node: Element) -> None:
     # workaround: nodes.term have wrong rawsource if classifier is specified.
     # The behavior of docutils-0.11, 0.12 is:
     # * when ``term text : classifier1 : classifier2`` is specified,
@@ -79,6 +133,9 @@ def apply_source_workaround(node):
         node.source = definition_list_item.source
         node.line = definition_list_item.line - 1
         node.rawsource = node.astext()  # set 'classifier1' (or 'classifier2')
+    elif isinstance(node, nodes.classifier) and not node.source:
+        # docutils-0.15 fills in rawsource attribute, but not in source.
+        node.source = node.parent.source
     if isinstance(node, nodes.image) and node.source is None:
         logger.debug('[i18n] PATCH: %r to have source, line: %s',
                      get_full_module_name(node), repr_domxml(node))
@@ -97,7 +154,7 @@ def apply_source_workaround(node):
 
     # workaround: literal_block under bullet list (#4913)
     if isinstance(node, nodes.literal_block) and node.source is None:
-        node.source = find_source_node(node)
+        node.source = get_node_source(node)
 
     # workaround: recommonmark-0.2.0 doesn't set rawsource attribute
     if not node.rawsource:
@@ -115,7 +172,7 @@ def apply_source_workaround(node):
     ))):
         logger.debug('[i18n] PATCH: %r to have source and line: %s',
                      get_full_module_name(node), repr_domxml(node))
-        node.source = find_source_node(node)
+        node.source = get_node_source(node)
         node.line = 0  # need fix docutils to get `node.line`
         return
 
@@ -129,8 +186,7 @@ IGNORED_NODES = (
 )
 
 
-def is_pending_meta(node):
-    # type: (nodes.Node) -> bool
+def is_pending_meta(node: Node) -> bool:
     if (isinstance(node, nodes.pending) and
        isinstance(node.details.get('nodes', [None])[0], addnodes.meta)):
         return True
@@ -138,8 +194,7 @@ def is_pending_meta(node):
         return False
 
 
-def is_translatable(node):
-    # type: (nodes.Node) -> bool
+def is_translatable(node: Node) -> bool:
     if isinstance(node, addnodes.translatable):
         return True
 
@@ -194,10 +249,9 @@ META_TYPE_NODES = (
 )
 
 
-def extract_messages(doctree):
-    # type: (nodes.Node) -> Iterable[Tuple[nodes.Node, unicode]]
+def extract_messages(doctree: Element) -> Iterable[Tuple[Element, str]]:
     """Extract translatable messages from a document tree."""
-    for node in doctree.traverse(is_translatable):
+    for node in doctree.traverse(is_translatable):  # type: nodes.Element
         if isinstance(node, addnodes.translatable):
             for msg in node.extract_original_messages():
                 yield node, msg
@@ -212,7 +266,7 @@ def extract_messages(doctree):
                 msg += '\n   :alt: %s' % node['alt']
         elif isinstance(node, META_TYPE_NODES):
             msg = node.rawcontent
-        elif is_pending_meta(node):
+        elif isinstance(node, nodes.pending) and is_pending_meta(node):
             msg = node.details['nodes'][0].rawcontent
         else:
             msg = node.rawsource.replace('\n', ' ').strip()
@@ -222,30 +276,44 @@ def extract_messages(doctree):
             yield node, msg
 
 
-def find_source_node(node):
-    # type: (nodes.Node) -> unicode
+def find_source_node(node: Element) -> str:
+    warnings.warn('find_source_node() is deprecated.',
+                  RemovedInSphinx40Warning)
+    return get_node_source(node)
+
+
+def get_node_source(node: Element) -> str:
     for pnode in traverse_parent(node):
         if pnode.source:
             return pnode.source
     return None
 
 
-def traverse_parent(node, cls=None):
-    # type: (nodes.Node, Any) -> Iterable[nodes.Node]
+def get_node_line(node: Element) -> int:
+    for pnode in traverse_parent(node):
+        if pnode.line:
+            return pnode.line
+    return None
+
+
+def traverse_parent(node: Element, cls: Any = None) -> Iterable[Element]:
     while node:
         if cls is None or isinstance(node, cls):
             yield node
         node = node.parent
 
 
-def traverse_translatable_index(doctree):
-    # type: (nodes.Node) -> Iterable[Tuple[nodes.Node, List[unicode]]]
+def get_prev_node(node: Node) -> Node:
+    pos = node.parent.index(node)
+    if pos > 0:
+        return node.parent[pos - 1]
+    else:
+        return None
+
+
+def traverse_translatable_index(doctree: Element) -> Iterable[Tuple[Element, List[str]]]:
     """Traverse translatable index node from a document tree."""
-    def is_block_index(node):
-        # type: (nodes.Node) -> bool
-        return isinstance(node, addnodes.index) and  \
-            node.get('inline') is False
-    for node in doctree.traverse(is_block_index):
+    for node in doctree.traverse(NodeMatcher(addnodes.index, inline=False)):  # type: addnodes.index  # NOQA
         if 'raw_entries' in node:
             entries = node['raw_entries']
         else:
@@ -253,8 +321,7 @@ def traverse_translatable_index(doctree):
         yield node, entries
 
 
-def nested_parse_with_titles(state, content, node):
-    # type: (Any, List[unicode], nodes.Node) -> unicode
+def nested_parse_with_titles(state: Any, content: StringList, node: Node) -> str:
     """Version of state.nested_parse() that allows titles and does not require
     titles to have the same decoration as the calling document.
 
@@ -273,8 +340,7 @@ def nested_parse_with_titles(state, content, node):
         state.memo.section_level = surrounding_section_level
 
 
-def clean_astext(node):
-    # type: (nodes.Node) -> unicode
+def clean_astext(node: Element) -> str:
     """Like node.astext(), but ignore images."""
     node = node.deepcopy()
     for img in node.traverse(nodes.image):
@@ -284,10 +350,9 @@ def clean_astext(node):
     return node.astext()
 
 
-def split_explicit_title(text):
-    # type: (unicode) -> Tuple[bool, unicode, unicode]
+def split_explicit_title(text: str) -> Tuple[bool, str, str]:
     """Split role content into title and target, if given."""
-    match = explicit_title_re.match(text)  # type: ignore
+    match = explicit_title_re.match(text)
     if match:
         return True, match.group(1), match.group(2)
     return False, text, text
@@ -298,11 +363,10 @@ indextypes = [
 ]
 
 
-def process_index_entry(entry, targetid):
-    # type: (unicode, unicode) -> List[Tuple[unicode, unicode, unicode, unicode, unicode]]
+def process_index_entry(entry: str, targetid: str) -> List[Tuple[str, str, str, str, str]]:
     from sphinx.domains.python import pairindextypes
 
-    indexentries = []  # type: List[Tuple[unicode, unicode, unicode, unicode, unicode]]
+    indexentries = []  # type: List[Tuple[str, str, str, str, str]]
     entry = entry.strip()
     oentry = entry
     main = ''
@@ -337,21 +401,22 @@ def process_index_entry(entry, targetid):
     return indexentries
 
 
-def inline_all_toctrees(builder, docnameset, docname, tree, colorfunc, traversed):
-    # type: (Builder, Set[unicode], unicode, nodes.Node, Callable, nodes.Node) -> nodes.Node
+def inline_all_toctrees(builder: "Builder", docnameset: Set[str], docname: str,
+                        tree: nodes.document, colorfunc: Callable, traversed: List[str]
+                        ) -> nodes.document:
     """Inline all toctrees in the *tree*.
 
     Record all docnames in *docnameset*, and output docnames with *colorfunc*.
     """
-    tree = tree.deepcopy()
+    tree = cast(nodes.document, tree.deepcopy())
     for toctreenode in tree.traverse(addnodes.toctree):
         newnodes = []
-        includefiles = map(text_type, toctreenode['includefiles'])
+        includefiles = map(str, toctreenode['includefiles'])
         for includefile in includefiles:
             if includefile not in traversed:
                 try:
                     traversed.append(includefile)
-                    logger.info(colorfunc(includefile) + " ", nonl=1)
+                    logger.info(colorfunc(includefile) + " ", nonl=True)
                     subtree = inline_all_toctrees(builder, docnameset, includefile,
                                                   builder.env.get_doctree(includefile),
                                                   colorfunc, traversed)
@@ -370,8 +435,8 @@ def inline_all_toctrees(builder, docnameset, docname, tree, colorfunc, traversed
     return tree
 
 
-def make_refnode(builder, fromdocname, todocname, targetid, child, title=None):
-    # type: (Builder, unicode, unicode, unicode, nodes.Node, unicode) -> nodes.reference
+def make_refnode(builder: "Builder", fromdocname: str, todocname: str, targetid: str,
+                 child: Node, title: str = None) -> nodes.reference:
     """Shortcut to create a reference node."""
     node = nodes.reference('', '', internal=True)
     if fromdocname == todocname and targetid:
@@ -388,15 +453,18 @@ def make_refnode(builder, fromdocname, todocname, targetid, child, title=None):
     return node
 
 
-def set_source_info(directive, node):
-    # type: (Any, nodes.Node) -> None
+def set_source_info(directive: Directive, node: Node) -> None:
     node.source, node.line = \
         directive.state_machine.get_source_and_line(directive.lineno)
 
 
-def set_role_source_info(inliner, lineno, node):
-    # type: (Any, unicode, nodes.Node) -> None
-    node.source, node.line = inliner.reporter.get_source_and_line(lineno)
+def set_role_source_info(inliner: Inliner, lineno: int, node: Node) -> None:
+    node.source, node.line = inliner.reporter.get_source_and_line(lineno)  # type: ignore
+
+
+def copy_source_info(src: Element, dst: Element) -> None:
+    dst.source = get_node_source(src)
+    dst.line = get_node_line(src)
 
 
 NON_SMARTQUOTABLE_PARENT_NODES = (
@@ -410,8 +478,7 @@ NON_SMARTQUOTABLE_PARENT_NODES = (
 )
 
 
-def is_smartquotable(node):
-    # type: (nodes.Node) -> bool
+def is_smartquotable(node: Node) -> bool:
     """Check the node is smart-quotable or not."""
     if isinstance(node.parent, NON_SMARTQUOTABLE_PARENT_NODES):
         return False
@@ -423,8 +490,7 @@ def is_smartquotable(node):
         return True
 
 
-def process_only_nodes(document, tags):
-    # type: (nodes.Node, Tags) -> None
+def process_only_nodes(document: Node, tags: "Tags") -> None:
     """Filter ``only`` nodes which does not match *tags*."""
     for node in document.traverse(addnodes.only):
         try:
@@ -445,9 +511,9 @@ def process_only_nodes(document, tags):
 
 
 # monkey-patch Element.copy to copy the rawsource and line
+# for docutils-0.14 or older versions.
 
-def _new_copy(self):
-    # type: (nodes.Node) -> nodes.Node
+def _new_copy(self: Element) -> Element:
     newnode = self.__class__(self.rawsource, **self.attributes)
     if isinstance(self, nodes.Element):
         newnode.source = self.source
@@ -455,4 +521,4 @@ def _new_copy(self):
     return newnode
 
 
-nodes.Element.copy = _new_copy
+nodes.Element.copy = _new_copy  # type: ignore

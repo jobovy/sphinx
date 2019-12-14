@@ -17,10 +17,10 @@ docs have a look at `Epydoc <http://epydoc.sourceforge.net/>`_, which also
 understands reST.
 
 For a great "introduction" to writing docs in general -- the whys and hows, see
-also `Write the docs <https://write-the-docs.readthedocs.io/>`_, written by Eric
-Holscher.
+also `Write the docs`_, written by Eric Holscher.
 
 .. _rinohtype: https://github.com/brechtm/rinohtype
+.. _Write the docs: http://www.writethedocs.org/guide/writing/beginners-guide-to-docs/
 
 Conversion from other systems
 -----------------------------
@@ -55,15 +55,13 @@ See the :ref:`pertinent section in the FAQ list <usingwith>`.
 Prerequisites
 -------------
 
-Sphinx needs at least **Python 2.7** or **Python 3.4** to run, as well as the
-docutils_ and Jinja2_ libraries.  Sphinx should work with docutils version 0.10
-or some (not broken) SVN trunk snapshot.  If you like to have source code
-highlighting support, you must also install the Pygments_ library.
+Sphinx needs at least **Python 3.5** to run.
+It also depends on 3rd party libraries such as docutils_ and jinja2_, but they
+are automatically installed when sphinx is installed.
 
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
 .. _docutils: http://docutils.sourceforge.net/
 .. _Jinja2: http://jinja.pocoo.org/
-.. _Pygments: http://pygments.org/
 
 
 Usage

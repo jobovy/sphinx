@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
     test_napoleon_docstring
     ~~~~~~~~~~~~~~~~~~~~~~~
@@ -6,16 +5,14 @@
     Tests for :mod:`sphinx.ext.napoleon.docstring` module.
 
 
-    :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
 from collections import namedtuple
 from inspect import cleandoc
 from textwrap import dedent
-from unittest import TestCase
-
-import mock
+from unittest import TestCase, mock
 
 from sphinx.ext.napoleon import Config
 from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
@@ -39,7 +36,7 @@ class NamedtupleSubclass(namedtuple('NamedtupleSubclass', ('attr1', 'attr2'))):
     __slots__ = ()
 
     def __new__(cls, attr1, attr2=None):
-        return super(NamedtupleSubclass, cls).__new__(cls, attr1, attr2)
+        return super().__new__(cls, attr1, attr2)
 
 
 class BaseDocstringTest(TestCase):
@@ -73,6 +70,34 @@ Sample namedtuple subclass
 
    :type: Type
 """
+
+        self.assertEqual(expected, actual)
+
+
+class InlineAttributeTest(BaseDocstringTest):
+
+    def test_class_data_member(self):
+        config = Config()
+        docstring = """data member description:
+
+- a: b
+"""
+        actual = str(GoogleDocstring(docstring, config=config, app=None,
+                     what='attribute', name='some_data', obj=0))
+        expected = """data member description:
+
+- a: b"""
+
+        self.assertEqual(expected, actual)
+
+    def test_class_data_member_inline(self):
+        config = Config()
+        docstring = """b: data member description with :ref:`reference`"""
+        actual = str(GoogleDocstring(docstring, config=config, app=None,
+                     what='attribute', name='some_data', obj=0))
+        expected = """data member description with :ref:`reference`
+
+:type: b"""
 
         self.assertEqual(expected, actual)
 
@@ -448,12 +473,21 @@ Raises:
         A setting wasn't specified, or was invalid.
     ValueError:
         Something something value error.
+    :py:class:`AttributeError`
+        errors for missing attributes.
+    ~InvalidDimensionsError
+        If the dimensions couldn't be parsed.
+    `InvalidArgumentsError`
+        If the arguments are invalid.
 
 """, """
 Example Function
 
-:raises: * :exc:`RuntimeError` -- A setting wasn't specified, or was invalid.
-         * :exc:`ValueError` -- Something something value error.
+:raises RuntimeError: A setting wasn't specified, or was invalid.
+:raises ValueError: Something something value error.
+:raises AttributeError: errors for missing attributes.
+:raises ~InvalidDimensionsError: If the dimensions couldn't be parsed.
+:raises InvalidArgumentsError: If the arguments are invalid.
 """),
                       ################################
                       ("""
@@ -465,7 +499,7 @@ Raises:
 """, """
 Example Function
 
-:raises: :exc:`InvalidDimensionsError`
+:raises InvalidDimensionsError:
 """),
                       ################################
                       ("""
@@ -477,7 +511,7 @@ Raises:
 """, """
 Example Function
 
-:raises: Invalid Dimensions Error
+:raises Invalid Dimensions Error:
 """),
                       ################################
                       ("""
@@ -489,7 +523,7 @@ Raises:
 """, """
 Example Function
 
-:raises: *Invalid Dimensions Error* -- With description
+:raises Invalid Dimensions Error: With description
 """),
                       ################################
                       ("""
@@ -501,7 +535,7 @@ Raises:
 """, """
 Example Function
 
-:raises: :exc:`InvalidDimensionsError` -- If the dimensions couldn't be parsed.
+:raises InvalidDimensionsError: If the dimensions couldn't be parsed.
 """),
                       ################################
                       ("""
@@ -513,7 +547,7 @@ Raises:
 """, """
 Example Function
 
-:raises: *Invalid Dimensions Error* -- If the dimensions couldn't be parsed.
+:raises Invalid Dimensions Error: If the dimensions couldn't be parsed.
 """),
                       ################################
                       ("""
@@ -525,7 +559,7 @@ Raises:
 """, """
 Example Function
 
-:raises: If the dimensions couldn't be parsed.
+:raises If the dimensions couldn't be parsed.:
 """),
                       ################################
                       ("""
@@ -537,7 +571,7 @@ Raises:
 """, """
 Example Function
 
-:raises: :class:`exc.InvalidDimensionsError`
+:raises exc.InvalidDimensionsError:
 """),
                       ################################
                       ("""
@@ -549,8 +583,7 @@ Raises:
 """, """
 Example Function
 
-:raises: :class:`exc.InvalidDimensionsError` -- If the dimensions couldn't """
-                          """be parsed.
+:raises exc.InvalidDimensionsError: If the dimensions couldn't be parsed.
 """),
                       ################################
                       ("""
@@ -563,9 +596,8 @@ Raises:
 """, """
 Example Function
 
-:raises: :class:`exc.InvalidDimensionsError` -- If the dimensions couldn't """
-                          """be parsed,
-         then a :class:`exc.InvalidDimensionsError` will be raised.
+:raises exc.InvalidDimensionsError: If the dimensions couldn't be parsed,
+    then a :class:`exc.InvalidDimensionsError` will be raised.
 """),
                       ################################
                       ("""
@@ -578,9 +610,8 @@ Raises:
 """, """
 Example Function
 
-:raises: * :class:`exc.InvalidDimensionsError` -- If the dimensions """
-                          """couldn't be parsed.
-         * :class:`exc.InvalidArgumentsError` -- If the arguments are invalid.
+:raises exc.InvalidDimensionsError: If the dimensions couldn't be parsed.
+:raises exc.InvalidArgumentsError: If the arguments are invalid.
 """),
                       ################################
                       ("""
@@ -593,8 +624,8 @@ Raises:
 """, """
 Example Function
 
-:raises: * :class:`exc.InvalidDimensionsError`
-         * :class:`exc.InvalidArgumentsError`
+:raises exc.InvalidDimensionsError:
+:raises exc.InvalidArgumentsError:
 """)]
         for docstring, expected in docstrings:
             actual = str(GoogleDocstring(docstring))
@@ -1320,8 +1351,8 @@ arg_ : type
 """
 
         expected = """
-:ivar arg_: some description
-:vartype arg_: type
+:ivar arg\\_: some description
+:vartype arg\\_: type
 """
 
         config = Config(napoleon_use_ivar=True)
@@ -1346,8 +1377,8 @@ Raises
 """, """
 Example Function
 
-:raises: * :exc:`RuntimeError` -- A setting wasn't specified, or was invalid.
-         * :exc:`ValueError` -- Something something value error.
+:raises RuntimeError: A setting wasn't specified, or was invalid.
+:raises ValueError: Something something value error.
 """),
                       ################################
                       ("""
@@ -1360,7 +1391,7 @@ InvalidDimensionsError
 """, """
 Example Function
 
-:raises: :exc:`InvalidDimensionsError`
+:raises InvalidDimensionsError:
 """),
                       ################################
                       ("""
@@ -1373,7 +1404,7 @@ Invalid Dimensions Error
 """, """
 Example Function
 
-:raises: Invalid Dimensions Error
+:raises Invalid Dimensions Error:
 """),
                       ################################
                       ("""
@@ -1387,7 +1418,7 @@ Invalid Dimensions Error
 """, """
 Example Function
 
-:raises: *Invalid Dimensions Error* -- With description
+:raises Invalid Dimensions Error: With description
 """),
                       ################################
                       ("""
@@ -1401,7 +1432,7 @@ InvalidDimensionsError
 """, """
 Example Function
 
-:raises: :exc:`InvalidDimensionsError` -- If the dimensions couldn't be parsed.
+:raises InvalidDimensionsError: If the dimensions couldn't be parsed.
 """),
                       ################################
                       ("""
@@ -1415,7 +1446,7 @@ Invalid Dimensions Error
 """, """
 Example Function
 
-:raises: *Invalid Dimensions Error* -- If the dimensions couldn't be parsed.
+:raises Invalid Dimensions Error: If the dimensions couldn't be parsed.
 """),
                       ################################
                       ("""
@@ -1428,7 +1459,7 @@ If the dimensions couldn't be parsed.
 """, """
 Example Function
 
-:raises: If the dimensions couldn't be parsed.
+:raises If the dimensions couldn't be parsed.:
 """),
                       ################################
                       ("""
@@ -1441,7 +1472,7 @@ Raises
 """, """
 Example Function
 
-:raises: :class:`exc.InvalidDimensionsError`
+:raises exc.InvalidDimensionsError:
 """),
                       ################################
                       ("""
@@ -1455,8 +1486,7 @@ Raises
 """, """
 Example Function
 
-:raises: :class:`exc.InvalidDimensionsError` -- If the dimensions couldn't """
-                          """be parsed.
+:raises exc.InvalidDimensionsError: If the dimensions couldn't be parsed.
 """),
                       ################################
                       ("""
@@ -1471,9 +1501,8 @@ Raises
 """, """
 Example Function
 
-:raises: :class:`exc.InvalidDimensionsError` -- If the dimensions couldn't """
-                          """be parsed,
-         then a :class:`exc.InvalidDimensionsError` will be raised.
+:raises exc.InvalidDimensionsError: If the dimensions couldn't be parsed,
+    then a :class:`exc.InvalidDimensionsError` will be raised.
 """),
                       ################################
                       ("""
@@ -1489,10 +1518,8 @@ Raises
 """, """
 Example Function
 
-:raises: * :class:`exc.InvalidDimensionsError` -- If the dimensions """
-                          """couldn't be parsed.
-         * :class:`exc.InvalidArgumentsError` -- If the arguments """
-                          """are invalid.
+:raises exc.InvalidDimensionsError: If the dimensions couldn't be parsed.
+:raises exc.InvalidArgumentsError: If the arguments are invalid.
 """),
                       ################################
                       ("""
@@ -1506,8 +1533,8 @@ Raises
 """, """
 Example Function
 
-:raises: * :class:`exc.InvalidDimensionsError`
-         * :class:`exc.InvalidArgumentsError`
+:raises exc.InvalidDimensionsError:
+:raises exc.InvalidArgumentsError:
 """)]
         for docstring, expected in docstrings:
             config = Config()

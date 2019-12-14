@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     test_environment_toctree
     ~~~~~~~~~~~~~~~~~~~~~~~~
 
     Test the sphinx.environment.managers.toctree.
 
-    :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -37,7 +36,7 @@ def test_process_doc(app):
                                list_item)])
 
     assert_node(toctree[0][0],
-                [compact_paragraph, reference, u"Welcome to Sphinx Tests’s documentation!"])
+                [compact_paragraph, reference, "Welcome to Sphinx Tests’s documentation!"])
     assert_node(toctree[0][0][0], reference, anchorname='')
     assert_node(toctree[0][1][0], addnodes.toctree,
                 caption="Table of Contents", glob=False, hidden=False,
@@ -76,11 +75,11 @@ def test_process_doc(app):
     # other collections
     assert app.env.toc_num_entries['index'] == 6
     assert app.env.toctree_includes['index'] == ['foo', 'bar', 'baz']
-    assert app.env.files_to_rebuild['foo'] == set(['index'])
-    assert app.env.files_to_rebuild['bar'] == set(['index'])
-    assert app.env.files_to_rebuild['baz'] == set(['index'])
+    assert app.env.files_to_rebuild['foo'] == {'index'}
+    assert app.env.files_to_rebuild['bar'] == {'index'}
+    assert app.env.files_to_rebuild['baz'] == {'index'}
     assert app.env.glob_toctrees == set()
-    assert app.env.numbered_toctrees == set(['index'])
+    assert app.env.numbered_toctrees == {'index'}
 
     # qux has no section title
     assert len(app.env.tocs['qux']) == 0
@@ -152,7 +151,7 @@ def test_get_toc_for(app):
                                                            addnodes.toctree)])],
                                [list_item, compact_paragraph])])  # [2][0]
     assert_node(toctree[0][0],
-                [compact_paragraph, reference, u"Welcome to Sphinx Tests’s documentation!"])
+                [compact_paragraph, reference, "Welcome to Sphinx Tests’s documentation!"])
     assert_node(toctree[0][1][2],
                 ([compact_paragraph, reference, "subsection"],
                  [bullet_list, list_item, compact_paragraph, reference, "subsubsection"]))
@@ -179,7 +178,7 @@ def test_get_toc_for_only(app):
                                                            addnodes.toctree)])],
                                [list_item, compact_paragraph])])  # [2][0]
     assert_node(toctree[0][0],
-                [compact_paragraph, reference, u"Welcome to Sphinx Tests’s documentation!"])
+                [compact_paragraph, reference, "Welcome to Sphinx Tests’s documentation!"])
     assert_node(toctree[0][1][1],
                 ([compact_paragraph, reference, "Section for HTML"],
                  [bullet_list, addnodes.toctree]))

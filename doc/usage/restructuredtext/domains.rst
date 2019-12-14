@@ -128,17 +128,28 @@ declarations:
 
    This directive will also cause an entry in the global module index.
 
-   The ``platform`` option, if present, is a comma-separated list of the
-   platforms on which the module is available (if it is available on all
-   platforms, the option should be omitted).  The keys are short identifiers;
-   examples that are in use include "IRIX", "Mac", "Windows", and "Unix".  It is
-   important to use a key which has already been used when applicable.
+   .. rubric:: options
 
-   The ``synopsis`` option should consist of one sentence describing the
-   module's purpose -- it is currently only used in the Global Module Index.
+   .. rst:directive:option:: platform: platforms
+      :type: comma separated list
 
-   The ``deprecated`` option can be given (with no value) to mark a module as
-   deprecated; it will be designated as such in various locations then.
+      Indicate platforms which the module is available (if it is available on
+      all platforms, the option should be omitted).  The keys are short
+      identifiers; examples that are in use include "IRIX", "Mac", "Windows"
+      and "Unix".  It is important to use a key which has already been used when
+      applicable.
+
+   .. rst:directive:option:: synopsis: purpose
+      :type: text
+
+      Consist of one sentence describing the module's purpose -- it is currently
+      only used in the Global Module Index.
+
+   .. rst:directive:option:: deprecated
+      :type: no argument
+
+      Mark a module as deprecated; it will be designated as such in various
+      locations then.
 
 .. rst:directive:: .. py:currentmodule:: name
 
@@ -168,6 +179,15 @@ The following directives are provided for module and class contents:
 
    This information can (in any ``py`` directive) optionally be given in a
    structured form, see :ref:`info-field-lists`.
+
+   .. rubric:: options
+
+   .. rst:directive:option:: async
+      :type: no value
+
+      Indicate the function is an async function.
+
+      .. versionadded:: 2.1
 
 .. rst:directive:: .. py:data:: name
 
@@ -215,6 +235,44 @@ The following directives are provided for module and class contents:
    parameter.  The description should include similar information to that
    described for ``function``.  See also :ref:`signatures` and
    :ref:`info-field-lists`.
+
+   .. rubric:: options
+
+   .. rst:directive:option:: abstractmethod
+      :type: no value
+
+      Indicate the method is an abstract method.
+
+      .. versionadded:: 2.1
+
+   .. rst:directive:option:: async
+      :type: no value
+
+      Indicate the method is an async method.
+
+      .. versionadded:: 2.1
+
+   .. rst:directive:option:: classmethod
+      :type: no value
+
+      Indicate the method is a class method.
+
+      .. versionadded:: 2.1
+
+   .. rst:directive:option:: property
+      :type: no value
+
+      Indicate the method is a property.
+
+      .. versionadded:: 2.1
+
+   .. rst:directive:option:: staticmethod
+      :type: no value
+
+      Indicate the method is a static method.
+
+      .. versionadded:: 2.1
+
 
 .. rst:directive:: .. py:staticmethod:: name(parameters)
 
@@ -541,17 +599,22 @@ The C++ Domain
 
 The C++ domain (name **cpp**) supports documenting C++ projects.
 
-Directives
-~~~~~~~~~~
+Directives for Declaring Entities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following directives are available. All declarations can start with a
 visibility statement (``public``, ``private`` or ``protected``).
 
 .. rst:directive:: .. cpp:class:: class specifier
+                   .. cpp:struct:: class specifier
 
    Describe a class/struct, possibly with specification of inheritance, e.g.,::
 
       .. cpp:class:: MyClass : public MyBase, MyOtherBase
+
+   The difference between :rst:dir:`cpp:class` and :rst:dir:`cpp:struct` is
+   only cosmetic: the prefix rendered in the output, and the specifier shown
+   in the index.
 
    The class can be directly declared inside a nested scope, e.g.,::
 
@@ -573,6 +636,9 @@ visibility statement (``public``, ``private`` or ``protected``).
 
       .. cpp:class:: template<typename T> \
                      std::array<T, 42>
+
+   .. versionadded:: 2.0
+      The :rst:dir:`cpp:struct` directive.
 
 .. rst:directive:: .. cpp:function:: (member) function prototype
 
@@ -691,7 +757,8 @@ visibility statement (``public``, ``private`` or ``protected``).
 
       .. cpp:enum-struct:: protected MyScopedVisibilityEnum : std::underlying_type<MySpecificEnum>::type
 
-         A scoped enum with non-default visibility, and with a specified underlying type.
+         A scoped enum with non-default visibility, and with a specified
+         underlying type.
 
 .. rst:directive:: .. cpp:enumerator:: name
                    .. cpp:enumerator:: name = constant
@@ -705,6 +772,8 @@ visibility statement (``public``, ``private`` or ``protected``).
 .. rst:directive:: .. cpp:union:: name
 
    Describe a union.
+
+   .. versionadded:: 1.8
 
 .. rst:directive:: .. cpp:concept:: template-parameter-list name
 
@@ -729,7 +798,8 @@ visibility statement (``public``, ``private`` or ``protected``).
          **Valid Expressions**
 
          - :cpp:expr:`*r`, when :cpp:expr:`r` is dereferenceable.
-         - :cpp:expr:`++r`, with return type :cpp:expr:`It&`, when :cpp:expr:`r` is incrementable.
+         - :cpp:expr:`++r`, with return type :cpp:expr:`It&`, when
+           :cpp:expr:`r` is incrementable.
 
    This will render as follows:
 
@@ -750,6 +820,9 @@ visibility statement (``public``, ``private`` or ``protected``).
       - :cpp:expr:`++r`, with return type :cpp:expr:`It&`, when :cpp:expr:`r`
         is incrementable.
 
+   .. versionadded:: 1.5
+
+
 Options
 ^^^^^^^
 
@@ -759,15 +832,18 @@ Some directives support options:
 - ``:tparam-line-spec:``, for templated declarations.
   If specified, each template parameter will be rendered on a separate line.
 
+  .. versionadded:: 1.6
+
 Anonymous Entities
 ~~~~~~~~~~~~~~~~~~
 
-C++ supposrts anonymous namespaces, classes, enums, and unions.
-For the sake of documentation they must be given some name that starts with ``@``,
-e.g., ``@42`` or ``@data``.
+C++ supports anonymous namespaces, classes, enums, and unions.
+For the sake of documentation they must be given some name that starts with
+``@``, e.g., ``@42`` or ``@data``.
 These names can also be used in cross-references and (type) expressions,
 though nested symbols will be found even when omitted.
-The ``@...`` name will always be rendered as **[anonymous]** (possibly as a link).
+The ``@...`` name will always be rendered as **[anonymous]** (possibly as a
+link).
 
 Example::
 
@@ -792,6 +868,45 @@ This will be rendered as:
       .. cpp:var:: double b
 
 Explicit ref: :cpp:var:`Data::@data::a`. Short-hand ref: :cpp:var:`Data::a`.
+
+.. versionadded:: 1.8
+
+
+Aliasing Declarations
+~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes it may be helpful list declarations elsewhere than their main
+documentation, e.g., when creating a synopsis of a class interface.
+The following directive can be used for this purpose.
+
+.. rst:directive:: .. cpp:alias:: name or function signature
+
+   Insert one or more alias declarations. Each entity can be specified
+   as they can in the :rst:role:`cpp:any` role.
+   If the name of a function is given (as opposed to the complete signature),
+   then all overloads of the function will be listed.
+
+   For example::
+
+       .. cpp:alias:: Data::a
+                      overload_example::C::f
+
+   becomes
+
+   .. cpp:alias:: Data::a
+                  overload_example::C::f
+
+   whereas::
+
+       .. cpp:alias:: void overload_example::C::f(double d) const
+                      void overload_example::C::f(double d)
+
+   becomes
+
+   .. cpp:alias:: void overload_example::C::f(double d) const
+                  void overload_example::C::f(double d)
+
+   .. versionadded:: 2.0
 
 
 Constrained Templates
@@ -850,8 +965,8 @@ Note however that no checking is performed with respect to parameter
 compatibility. E.g., ``Iterator{A, B, C}`` will be accepted as an introduction
 even though it would not be valid C++.
 
-Inline Expressions and Tpes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Inline Expressions and Types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. rst:role:: cpp:expr
               cpp:texpr
@@ -879,6 +994,11 @@ Inline Expressions and Tpes
    A type: :cpp:expr:`const MySortedContainer<int>&`
    (or as text :cpp:texpr:`const MySortedContainer<int>&`).
 
+   .. versionadded:: 1.7
+      The :rst:role:`cpp:expr` role.
+
+   .. versionadded:: 1.8
+      The :rst:role:`cpp:texpr` role.
 
 Namespacing
 ~~~~~~~~~~~
@@ -941,6 +1061,8 @@ The ``cpp:namespace-pop`` directive undoes the most recent
 
    the current scope will be ``A::B::C::D``.
 
+   .. versionadded:: 1.4
+
 .. rst:directive:: .. cpp:namespace-pop::
 
    Undo the previous ``cpp:namespace-push`` directive (*not* just pop a scope).
@@ -962,6 +1084,8 @@ The ``cpp:namespace-pop`` directive undoes the most recent
 
       .. cpp:namespace-push:: A::B
 
+   .. versionadded:: 1.4
+
 Info field lists
 ~~~~~~~~~~~~~~~~~
 
@@ -982,6 +1106,7 @@ These roles link to the given declaration types:
 
 .. rst:role:: cpp:any
               cpp:class
+              cpp:struct
               cpp:func
               cpp:member
               cpp:var
@@ -993,17 +1118,22 @@ These roles link to the given declaration types:
    Reference a C++ declaration by name (see below for details).  The name must
    be properly qualified relative to the position of the link.
 
+   .. versionadded:: 2.0
+      The :rst:role:`cpp:struct` role as alias for the :rst:role:`cpp:class`
+      role.
+
 .. admonition:: Note on References with Templates Parameters/Arguments
 
-   These roles follow the Sphinx :ref:`xref-syntax` rules. This means care must be
-   taken when referencing a (partial) template specialization, e.g. if the link looks like
-   this: ``:cpp:class:`MyClass<int>```.
+   These roles follow the Sphinx :ref:`xref-syntax` rules. This means care must
+   be taken when referencing a (partial) template specialization, e.g. if the
+   link looks like this: ``:cpp:class:`MyClass<int>```.
    This is interpreted as a link to ``int`` with a title of ``MyClass``.
    In this case, escape the opening angle bracket with a backslash,
    like this: ``:cpp:class:`MyClass\<int>```.
 
-   When a custom title is not needed it may be useful to use the roles for inline expressions,
-   :rst:role:`cpp:expr` and :rst:role:`cpp:texpr`, where angle brackets do not need escaping.
+   When a custom title is not needed it may be useful to use the roles for
+   inline expressions, :rst:role:`cpp:expr` and :rst:role:`cpp:texpr`, where
+   angle brackets do not need escaping.
 
 Declarations without template parameters and template arguments
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1017,7 +1147,7 @@ Overloaded (member) functions
 
 When a (member) function is referenced using just its name, the reference
 will point to an arbitrary matching overload.
-The :rst:role:`cpp:any` and :rst:role:`cpp:func` roles will an alternative
+The :rst:role:`cpp:any` and :rst:role:`cpp:func` roles use an alternative
 format, which simply is a complete function declaration.
 This will resolve to the exact matching overload.
 As example, consider the following class declaration:
@@ -1037,7 +1167,8 @@ References using the :rst:role:`cpp:func` role:
 - Specific overload: ``void C::f()``, :cpp:func:`void C::f()`
 - Specific overload: ``void C::f(int)``, :cpp:func:`void C::f(int)`
 - Specific overload: ``void C::f(double)``, :cpp:func:`void C::f(double)`
-- Specific overload: ``void C::f(double) const``, :cpp:func:`void C::f(double) const`
+- Specific overload: ``void C::f(double) const``,
+  :cpp:func:`void C::f(double) const`
 
 Note that the :confval:`add_function_parentheses` configuration variable
 does not influence specific overload references.
@@ -1066,8 +1197,9 @@ and template arguments for the prefix of qualified names. For example:
 - ``template\<typename TOuter> template\<typename TInner> Wrapper::Outer<TOuter>::Inner``
   (:cpp:class:`template\<typename TOuter> template\<typename TInner> Wrapper::Outer<TOuter>::Inner`)
 
-Currently the lookup only succeed if the template parameter identifiers are equal strings.
-That is, ``template\<typename UOuter> Wrapper::Outer`` will not work.
+Currently the lookup only succeed if the template parameter identifiers are
+equal strings.  That is, ``template\<typename UOuter> Wrapper::Outer`` will not
+work.
 
 As a shorthand notation, if a template parameter list is omitted,
 then the lookup will assume either a primary template or a non-template,
@@ -1128,6 +1260,7 @@ Configuration Variables
 
 See :ref:`cpp-config`.
 
+.. _domains-std:
 
 The Standard Domain
 -------------------
@@ -1155,7 +1288,7 @@ There is a set of directives allowing documenting command-line programs:
          Run a module as a script.
 
    The directive will create cross-reference targets for the given options,
-   referencable by :rst:role:`option` (in the example case, you'd use something
+   referenceable by :rst:role:`option` (in the example case, you'd use something
    like ``:option:`dest_dir```, ``:option:`-m```, or ``:option:`--module```).
 
    ``cmdoption`` directive is a deprecated alias for the ``option`` directive.
@@ -1163,7 +1296,7 @@ There is a set of directives allowing documenting command-line programs:
 .. rst:directive:: .. envvar:: name
 
    Describes an environment variable that the documented code or program uses
-   or defines.  Referencable by :rst:role:`envvar`.
+   or defines.  Referenceable by :rst:role:`envvar`.
 
 .. rst:directive:: .. program:: name
 
@@ -1226,8 +1359,6 @@ The JavaScript domain (name **js**) provides the following directives:
    entry in the global module index, unless the ``noindex`` option is
    specified.  If this option is specified, the directive will only update the
    current module name.
-
-   To clear the current module, set the module name to ``null`` or ``None``
 
    .. versionadded:: 1.6
 
@@ -1336,6 +1467,43 @@ The reStructuredText domain (name **rst**) provides the following directives:
 
          Bar description.
 
+.. rst:directive:: .. rst:directive:option:: name
+
+   Describes an option for reST directive.  The *name* can be a single option
+   name or option name with arguments which separated with colon (``:``).
+   For example::
+
+       .. rst:directive:: toctree
+
+          .. rst:directive:option:: caption: caption of ToC
+
+          .. rst:directive:option:: glob
+
+   will be rendered as:
+
+       .. rst:directive:: toctree
+          :noindex:
+
+          .. rst:directive:option:: caption: caption of ToC
+
+          .. rst:directive:option:: glob
+
+   .. rubric:: options
+
+   .. rst:directive:option:: type: description of argument
+      :type: text
+
+      Describe the type of option value.
+
+      For example::
+
+         .. rst:directive:: toctree
+
+            .. rst:directive:option:: maxdepth
+               :type: integer or no value
+
+      .. versionadded:: 2.1
+
 .. rst:directive:: .. rst:role:: name
 
    Describes a reST role.  For example::
@@ -1362,7 +1530,7 @@ These roles are provided to refer to the described objects:
 The Math Domain
 ---------------
 
-The math domain (name **math**) provides the following roles::
+The math domain (name **math**) provides the following roles:
 
 .. rst:role:: math:numref
 

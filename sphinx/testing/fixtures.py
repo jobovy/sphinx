@@ -1,40 +1,33 @@
-# -*- coding: utf-8 -*-
 """
     sphinx.testing.fixtures
     ~~~~~~~~~~~~~~~~~~~~~~~
 
     Sphinx test fixtures for pytest
 
-    :copyright: Copyright 2007-2018 by the Sphinx team, see AUTHORS.
+    :copyright: Copyright 2007-2019 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
-from __future__ import print_function
 
 import os
 import subprocess
 import sys
 from collections import namedtuple
-from tempfile import gettempdir
+from io import StringIO
+from subprocess import PIPE
+from typing import Any, Dict
 
 import pytest
-from six import StringIO, string_types
 
 from . import util
 
-if False:
-    # For type annotation
-    from typing import Any, Dict, Union  # NOQA
-
 
 @pytest.fixture(scope='session')
-def rootdir():
-    # type: () -> None
+def rootdir() -> None:
     return None
 
 
 @pytest.fixture
 def app_params(request, test_params, shared_result, sphinx_test_tempdir, rootdir):
-    # type: (Any, Any, Any, Any, Any) -> None
     """
     parameters that is specified by 'pytest.mark.sphinx' for
     sphinx.application.Sphinx initialization
@@ -102,8 +95,7 @@ def test_params(request):
     }
     result.update(kwargs)
 
-    if (result['shared_result'] and
-            not isinstance(result['shared_result'], string_types)):
+    if (result['shared_result'] and not isinstance(result['shared_result'], str)):
         raise pytest.Exception('You can only provide a string type of value '
                                'for "shared_result" ')
     return result
@@ -161,10 +153,10 @@ def make_app(test_params, monkeypatch):
         status, warning = StringIO(), StringIO()
         kwargs.setdefault('status', status)
         kwargs.setdefault('warning', warning)
-        app_ = util.SphinxTestApp(*args, **kwargs)  # type: Union[util.SphinxTestApp, util.SphinxTestAppWrapperForSkipBuilding]  # NOQA
+        app_ = util.SphinxTestApp(*args, **kwargs)  # type: Any
         apps.append(app_)
         if test_params['shared_result']:
-            app_ = util.SphinxTestAppWrapperForSkipBuilding(app_)  # type: ignore
+            app_ = util.SphinxTestAppWrapperForSkipBuilding(app_)
         return app_
     yield make
 
@@ -173,7 +165,7 @@ def make_app(test_params, monkeypatch):
         app_.cleanup()
 
 
-class SharedResult(object):
+class SharedResult:
     cache = {}  # type: Dict[str, Dict[str, str]]
 
     def store(self, key, app_):
@@ -214,10 +206,7 @@ def if_graphviz_found(app):
     graphviz_dot = getattr(app.config, 'graphviz_dot', '')
     try:
         if graphviz_dot:
-            dot = subprocess.Popen([graphviz_dot, '-V'],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)  # show version
-            dot.communicate()
+            subprocess.run([graphviz_dot, '-V'], stdout=PIPE, stderr=PIPE)  # show version
             return
     except OSError:  # No such file or directory
         pass
@@ -226,11 +215,15 @@ def if_graphviz_found(app):
 
 
 @pytest.fixture(scope='session')
-def sphinx_test_tempdir():
+def sphinx_test_tempdir(tmpdir_factory):
     """
     temporary directory that wrapped with `path` class.
     """
-    return util.path(os.environ.get('SPHINX_TEST_TEMPDIR', gettempdir())).abspath()
+    tmpdir = os.environ.get('SPHINX_TEST_TEMPDIR')  # RemovedInSphinx40Warning
+    if tmpdir is None:
+        tmpdir = tmpdir_factory.getbasetemp()
+
+    return util.path(tmpdir).abspath()
 
 
 @pytest.fixture

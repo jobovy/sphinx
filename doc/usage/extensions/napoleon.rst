@@ -56,7 +56,7 @@ source code files.
 .. _Google:
    https://google.github.io/styleguide/pyguide.html#Comments
 .. _NumPy:
-   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+   https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard
 .. _Khan Academy:
    https://github.com/Khan/style-guides/blob/master/style/python.md#docstrings
 
@@ -130,7 +130,7 @@ Google vs NumPy
 ~~~~~~~~~~~~~~~
 
 Napoleon supports two styles of docstrings: `Google`_ and `NumPy`_. The
-main difference between the two styles is that Google uses indention to
+main difference between the two styles is that Google uses indentation to
 separate sections, whereas NumPy uses underlines.
 
 Google style:
@@ -409,9 +409,9 @@ sure that "sphinx.ext.napoleon" is enabled in `conf.py`::
 
        .. attribute:: attr1
 
-          *int*
-
           Description of `attr1`
+
+          :type: int
 
 .. confval:: napoleon_use_param
 
